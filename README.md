@@ -36,6 +36,22 @@ Stack: React 19 + Vite + TypeScript · Supabase (Postgres, Auth with TOTP two-fa
 6. **Check** in the app as admin: Settings shows "Nightly check scheduled · alert sender running";
    use **Send test email**.
 
+## Deploy to Vercel
+
+`.env.local` is never committed (it holds your keys), so Vercel needs the values set separately.
+
+1. Import the GitHub repo in Vercel. `vercel.json` already sets the Vite build, `dist` output, the
+   SPA rewrite (so deep links and refreshes don't 404) and asset caching.
+2. Project → Settings → Environment Variables, for Production, Preview and Development:
+   - `VITE_SUPABASE_URL`: from Supabase → Project Settings → API
+   - `VITE_SUPABASE_ANON_KEY`: the anon / publishable key
+
+   **Never add `SUPABASE_SERVICE_ROLE_KEY` to Vercel.** It's only for `npm run seed` on your machine,
+   and any `VITE_` variable is bundled into the public JavaScript.
+3. Redeploy after adding or changing variables. Vite bakes them in at build time.
+4. In Supabase → Authentication → URL Configuration, set the Site URL to your Vercel domain and add
+   `https://<your-domain>/**` to the redirect URLs, or invite and password-reset links will point at localhost.
+
 | Edge function | Called by | Does |
 |---|---|---|
 | `register-file` | invigilator / officer / student | hashes + archives scans and documents |
