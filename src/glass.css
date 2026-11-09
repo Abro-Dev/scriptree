@@ -1,0 +1,178 @@
+/* =====================================================================
+   Part 1 — shared by both themes: chart tokens + new components
+   (Appearance dialog, admin Overview). Classic values match styles.css.
+   ===================================================================== */
+:root{
+  --chart-grid:#eef1fa; --chart-axis:#cfd6ec; --chart-short:#e0452f;
+  --c-registered:#2340a8; --c-present:#7b5cd6; --c-physical:#ffc83d; --c-scanned:#21a67a;
+  --row-bad:#fef2f2;
+}
+.who .row button{margin-top:0}
+.appearance-btn{background:rgba(255,255,255,.12);border:0;color:#fff;border-radius:999px;padding:6px 14px;cursor:pointer;font-size:12.5px;font-weight:700}
+.appearance-btn:hover{background:var(--sun);color:var(--ink)}
+
+.theme-choice{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.theme-choice button{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;padding:12px;border-radius:var(--r);border:2px solid var(--line);background:transparent;cursor:pointer;color:inherit}
+.theme-choice button.on{border-color:var(--cobalt)}
+.theme-swatch{width:100%;height:58px;border-radius:12px;margin-bottom:6px}
+.theme-swatch.glass{background:linear-gradient(140deg,rgba(255,255,255,.35),rgba(255,255,255,.08)),url(/bg/thumbs/library-lights.jpg) center/cover;box-shadow:inset 1px 1px 0 rgba(255,255,255,.5)}
+.theme-swatch.classic{background:linear-gradient(90deg,var(--cobalt) 0 30%,#f4f6fd 30%);box-shadow:inset 0 0 0 1px var(--line)}
+
+.backdrop-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.backdrop-grid button{aspect-ratio:160/104;border:0;border-radius:10px;background:center/cover no-repeat;cursor:pointer;box-shadow:0 0 0 1px rgba(127,127,127,.25);transition:transform .15s,box-shadow .15s}
+.backdrop-grid button:hover{transform:translateY(-2px)}
+.backdrop-grid button.on{box-shadow:0 0 0 3px #fff,0 0 0 5px var(--cobalt)}
+@media(max-width:560px){.backdrop-grid{grid-template-columns:repeat(3,1fr)}}
+
+.integrity{display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+.ring-big{position:relative;width:128px;height:128px;flex:none}
+.ring-big>div{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+.ring-big b{font-family:var(--display);font-size:24px;line-height:1}
+.ring-big span{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);font-weight:800;margin-top:4px}
+.integrity-legend{flex:1;min-width:170px;display:flex;flex-direction:column;gap:10px;font-size:13px}
+.integrity-legend>div{display:flex;justify-content:space-between;gap:10px}
+.integrity-legend i{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:8px}
+.integrity-legend b{font-variant-numeric:tabular-nums}
+
+.audit-feed{list-style:none;margin:0;padding:0}
+.audit-feed li{position:relative;padding:0 0 14px 24px}
+.audit-feed li:before{content:'';position:absolute;left:0;top:5px;width:10px;height:10px;border-radius:50%;background:var(--cobalt);box-shadow:0 0 0 3px var(--cobalt-l)}
+.audit-feed li:after{content:'';position:absolute;left:4.5px;top:19px;bottom:2px;width:1px;background:var(--line)}
+.audit-feed li:last-child:after{display:none}
+
+/* backdrop layers exist only in glass mode (rendered by ThemeProvider) */
+.backdrop{position:fixed;inset:0;z-index:-1;pointer-events:none;background:#120f24}
+.backdrop-photo{position:absolute;inset:0;background:center/cover no-repeat;opacity:0;transform:scale(1.04);transition:opacity .9s ease,transform 8s ease}
+.backdrop-photo.show{opacity:1;transform:none}
+.backdrop-scrim{position:absolute;inset:0;background:linear-gradient(120deg,rgba(14,10,34,.58),rgba(14,10,34,.28) 50%,rgba(14,10,34,.62))}
+
+/* =====================================================================
+   Part 2 — Glass theme. Redefines the colour tokens for a dark, frosted
+   look, then restyles the surfaces that hard-code light colours.
+   ===================================================================== */
+:root[data-theme="glass"]{
+  --ink:#fff; --ink2:rgba(255,255,255,.80); --ink3:rgba(255,255,255,.62);
+  --line:rgba(255,255,255,.18); --line2:rgba(255,255,255,.10); --bg:transparent; --card:transparent;
+  --crit:#ff7a8a; --high:#ffa86b; --med:#ffd36b; --ok:#5ef0b4; --pend:rgba(255,255,255,.6);
+  --chart-grid:rgba(255,255,255,.10); --chart-axis:rgba(255,255,255,.28); --chart-short:#ff8f9c;
+  --c-registered:#8fb8ff; --c-present:#b9a4ff; --c-physical:#ffd36b; --c-scanned:#5ef0b4;
+  --row-bad:rgba(255,122,138,.12);
+  --glass:linear-gradient(140deg,rgba(255,255,255,.10),rgba(255,255,255,.03)),rgba(18,16,38,.44);
+  --glass-strong:linear-gradient(140deg,rgba(255,255,255,.08),rgba(255,255,255,.02)),rgba(18,16,38,.60);
+  --glass-edge:inset 1px 1px 0 rgba(255,255,255,.26),0 18px 44px -14px rgba(5,3,20,.6);
+  --blur:blur(24px) saturate(150%);
+  --on-light:#14102e;
+  color-scheme:dark;
+}
+[data-theme="glass"] body{background:#120f24;color:var(--ink)}
+[data-theme="glass"] a{color:#b5ccff}
+
+/* the glass recipe, applied to every surface */
+[data-theme="glass"] :is(.side,.top,.card,.band>.kpi,.tabs,.modal,.login .hero,.login .side-r){
+  background:var(--glass);
+  -webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);
+  border:1px solid rgba(255,255,255,.09);
+  box-shadow:var(--glass-edge);
+}
+/* dense data reads better on a steadier, darker pane */
+[data-theme="glass"] :is(.table-card,.modal){background:var(--glass-strong)}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  [data-theme="glass"] :is(.side,.top,.card,.band>.kpi,.tabs,.modal,.login .hero,.login .side-r){background:rgba(24,20,50,.93)}
+}
+
+/* shell: floating panels with breathing room */
+[data-theme="glass"] .side{margin:16px;height:calc(100vh - 32px);top:16px;border-radius:22px;color:var(--ink2)}
+[data-theme="glass"] .side:after{display:none}
+[data-theme="glass"] .pillars,[data-theme="glass"] .who{color:var(--ink3)}
+[data-theme="glass"] .nav .sec{color:rgba(255,255,255,.5);letter-spacing:.1em;text-transform:uppercase;font-size:11px}
+[data-theme="glass"] :is(.nav a,.nav button){color:var(--ink2)}
+[data-theme="glass"] :is(.nav a.on,.nav button.on){background:rgba(255,255,255,.92);color:var(--on-light)}
+[data-theme="glass"] .main{padding:16px 16px 0 0}
+[data-theme="glass"] .top{top:16px;border-radius:20px;padding:16px 24px;margin-bottom:18px}
+[data-theme="glass"] .content{padding:0 0 56px}
+@media(max-width:700px){
+  [data-theme="glass"] .main{padding:0 12px}
+  [data-theme="glass"] .top{top:auto;padding:14px 16px}
+  [data-theme="glass"] .side{margin:0;top:10px;bottom:10px;left:10px;height:auto;border-radius:22px;background:linear-gradient(140deg,rgba(255,255,255,.10),rgba(255,255,255,.03)),rgba(18,16,38,.72)}
+  [data-theme="glass"] .drawer-scrim{background:rgba(8,6,22,.4);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+  [data-theme="glass"] .mobile-bar{margin:10px 0 12px;border-radius:18px;background:var(--glass);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid rgba(255,255,255,.09);box-shadow:var(--glass-edge);top:10px}
+  [data-theme="glass"] .menu-dot{box-shadow:0 0 0 2px rgba(18,16,38,.9)}
+}
+
+/* number tiles: all glass, the first keeps a soft accent glow */
+[data-theme="glass"] .band>.kpi:nth-child(n){color:var(--ink)}
+[data-theme="glass"] .band>.kpi:nth-child(1){background:linear-gradient(140deg,rgba(143,184,255,.30),rgba(143,184,255,.06)),rgba(18,16,38,.44)}
+[data-theme="glass"] .band>.kpi:nth-child(1):after{display:none}
+[data-theme="glass"] .band>.kpi .lab,[data-theme="glass"] .band>.kpi .note{color:var(--ink3)}
+
+/* status chips: tinted glass instead of pastel blocks */
+[data-theme="glass"] .p-crit{background:rgba(255,122,138,.16);color:#ff9aa6}
+[data-theme="glass"] .p-high{background:rgba(255,168,107,.16);color:#ffb98a}
+[data-theme="glass"] .p-med{background:rgba(255,211,107,.15);color:#ffdc86}
+[data-theme="glass"] .p-ok{background:rgba(94,240,180,.14);color:#6ff3be}
+[data-theme="glass"] .p-pend{background:rgba(255,255,255,.10);color:var(--ink2)}
+[data-theme="glass"] .p-live{background:rgba(143,184,255,.16);color:#a9c6ff}
+[data-theme="glass"] .p-info{background:rgba(185,164,255,.16);color:#c9b8ff}
+[data-theme="glass"] .banner.warn{background:rgba(255,211,107,.14);color:#ffe3a1}
+[data-theme="glass"] .banner.crit{background:rgba(255,122,138,.15);color:#ffc0c8}
+[data-theme="glass"] .banner.ok{background:rgba(94,240,180,.13);color:#b4f7da}
+[data-theme="glass"] .banner.info{background:rgba(143,184,255,.14);color:#cddcff}
+
+/* controls */
+[data-theme="glass"] .btn{background:rgba(255,255,255,.10);border-color:rgba(255,255,255,.18);color:var(--ink)}
+[data-theme="glass"] .btn:hover{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.4);color:#fff}
+[data-theme="glass"] .btn.pri{background:#fff;border-color:#fff;color:var(--on-light)}
+[data-theme="glass"] .btn.pri:hover{background:#fff;box-shadow:0 8px 22px -6px rgba(255,255,255,.55)}
+[data-theme="glass"] .btn.danger{color:var(--crit)}
+[data-theme="glass"] :is(.input,select.input,textarea.input){background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.18);color:#fff}
+[data-theme="glass"] .input::placeholder{color:rgba(255,255,255,.5)}
+[data-theme="glass"] .input:focus{border-color:rgba(255,255,255,.6);box-shadow:0 0 0 4px rgba(255,255,255,.12)}
+[data-theme="glass"] select option{background:#1d1838;color:#fff}
+[data-theme="glass"] .chip{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.16);color:var(--ink2)}
+[data-theme="glass"] .chip:hover{border-color:rgba(255,255,255,.4);color:#fff}
+[data-theme="glass"] .chip.on{background:#fff;border-color:#fff;color:var(--on-light)}
+[data-theme="glass"] .seg{background:rgba(255,255,255,.10)}
+[data-theme="glass"] .seg button{color:var(--ink2)}
+[data-theme="glass"] .seg button.on{background:#fff;color:var(--on-light);box-shadow:none}
+[data-theme="glass"] .tabs button{color:var(--ink3)}
+[data-theme="glass"] .tabs button:hover{color:#fff}
+[data-theme="glass"] .tabs button.on{background:#fff;color:var(--on-light)}
+[data-theme="glass"] .bar{background:rgba(255,255,255,.12)}
+[data-theme="glass"] .dash{color:rgba(255,255,255,.3)}
+[data-theme="glass"] .hash{background:rgba(255,255,255,.10);color:var(--ink2)}
+[data-theme="glass"] input[type=checkbox]{accent-color:#5ef0b4}
+
+/* tables + lists */
+[data-theme="glass"] tr.click:hover td,[data-theme="glass"] .sess:hover{background:rgba(255,255,255,.06)}
+[data-theme="glass"] .sess-t{color:var(--ink2)}
+
+/* reconciliation steps + custody timeline */
+[data-theme="glass"] .funnel>div:nth-child(1){background:rgba(143,184,255,.16)}
+[data-theme="glass"] .funnel>div:nth-child(2){background:rgba(185,164,255,.16)}
+[data-theme="glass"] .funnel>div:nth-child(3){background:rgba(255,211,107,.14)}
+[data-theme="glass"] .funnel>div:nth-child(4){background:rgba(94,240,180,.13)}
+[data-theme="glass"] .funnel>div+div:before{border-left-color:rgba(255,255,255,.5)}
+[data-theme="glass"] .timeline{border-left-color:rgba(255,255,255,.25)}
+[data-theme="glass"] .timeline .ev:before{background:#1d1838}
+[data-theme="glass"] .drop{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.28);color:var(--ink2)}
+[data-theme="glass"] .drop:hover,[data-theme="glass"] .drop.over{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.6)}
+[data-theme="glass"] .thumbs img{border-color:rgba(255,255,255,.2)}
+[data-theme="glass"] .audit-feed li:before{background:#8fb8ff;box-shadow:0 0 0 3px rgba(143,184,255,.2)}
+
+/* overlays */
+[data-theme="glass"] .modal-bg{background:rgba(8,6,22,.5)}
+[data-theme="glass"] .modal{border-radius:24px}
+[data-theme="glass"] .toast{background:rgba(255,255,255,.95);color:var(--on-light)}
+[data-theme="glass"] .theme-choice button.on{border-color:#fff}
+[data-theme="glass"] .backdrop-grid button.on{box-shadow:0 0 0 2px #fff,0 8px 20px -6px rgba(0,0,0,.6)}
+
+/* sign-in: two floating panes over the photo */
+[data-theme="glass"] .login{background:transparent;gap:18px;padding:18px}
+[data-theme="glass"] .login .hero{border-radius:26px}
+[data-theme="glass"] .login .hero:before{display:none}
+[data-theme="glass"] .login p.lead{color:var(--ink2)}
+[data-theme="glass"] .login .side-r{border-radius:26px}
+[data-theme="glass"] .role{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.14);color:var(--ink)}
+[data-theme="glass"] .role:hover{border-color:rgba(255,255,255,.45);background:rgba(255,255,255,.12)}
+[data-theme="glass"] .role .go{color:#ffb3a8}
+@media(max-width:900px){[data-theme="glass"] .login{padding:12px;gap:12px}}
