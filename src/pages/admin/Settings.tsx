@@ -31,7 +31,7 @@ export function Settings() {
     if (!f) return;
     setErr('');
     if (!f.allow_pdf_upload && !f.allow_photo_snaps) return setErr('Keep at least one way to capture scripts.');
-    if (!Number.isInteger(f.max_file_mb) || f.max_file_mb < 1 || f.max_file_mb > 200) return setErr('Maximum file size must be 1–200 MB.');
+    if (!Number.isInteger(f.max_file_mb) || f.max_file_mb < 1 || f.max_file_mb > 50) return setErr('Maximum file size must be 1–50 MB.');
     if (!/^\d{2}:\d{2}$/.test(f.nightly_check_at)) return setErr('Enter the nightly check time as HH:MM.');
     if (f.alert_email && !isEmail(f.alert_email)) return setErr('Enter a valid alert email, or leave it empty.');
     setBusy(true);
@@ -68,7 +68,7 @@ export function Settings() {
           <label className="row small" style={{ gap: 8, marginBottom: 6 }}><input type="checkbox" checked={f.allow_pdf_upload} onChange={(e) => set('allow_pdf_upload', e.target.checked)} /> Direct PDF upload from scanner</label>
           <label className="row small" style={{ gap: 8, marginBottom: 10 }}><input type="checkbox" checked={f.allow_photo_snaps} onChange={(e) => set('allow_photo_snaps', e.target.checked)} /> Photo snaps merged into one PDF</label>
           <div className="row small" style={{ marginBottom: 18 }}>Maximum file size
-            <input className="input" type="number" min={1} max={200} style={{ width: 80 }} value={f.max_file_mb} onChange={(e) => set('max_file_mb', Math.trunc(Number(e.target.value)))} aria-label="Maximum file size in MB" /> MB
+            <input className="input" type="number" min={1} max={50} style={{ width: 80 }} value={f.max_file_mb} onChange={(e) => set('max_file_mb', Math.trunc(Number(e.target.value)))} aria-label="Maximum file size in MB" /> MB
             <span className="muted">(applies to scans and student documents)</span></div>
 
           <h3>Integrity and alerts</h3>

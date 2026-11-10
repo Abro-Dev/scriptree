@@ -38,7 +38,9 @@ export function HallList() {
     nav(`/hall/${s.id}`);
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  // local date: toISOString() is UTC, which is still "yesterday" for the first hour after midnight in Nigeria
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   return (
     <>
       <PageTop title="Exam hall" sub="Sessions assigned to you" />

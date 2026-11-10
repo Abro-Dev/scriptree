@@ -72,7 +72,7 @@ export function Audit() {
       <div className="content">
         {chainErr && <div className="banner crit" style={{ marginBottom: 16 }}>{chainErr}</div>}
         {chain && <div className={`banner ${chain.ok ? 'ok' : 'crit'}`} style={{ marginBottom: 16 }}>
-          {chain.ok ? <><b>Chain intact.</b> All {chain.entries} entries re-hashed on the server and linked correctly.</>
+          {chain.ok ? <><b>Chain intact.</b> {Number(chain.entries).toLocaleString()} entries linked correctly. New entries were re-hashed just now; the whole log is re-hashed every night.</>
             : <><b>Chain broken at entry #{chain.broken_at}.</b> That entry was altered after it was written — its hash no longer matches, so every later link is suspect. Report this to the system admin.</>}
         </div>}
         {error && <div className="banner crit">{error}</div>}

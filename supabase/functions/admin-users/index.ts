@@ -74,23 +74,19 @@ Deno.serve(async (req) => {
 
   // ------------------------------------------------------------------
   if (body.action === 'list') {
-    const authUsers: { id: string; last_sign_in_at?: string; factors?: { status: string }[] }[] = [];
-    for (let page = 1; page < 50; page++) {
-      const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
-      if (error) return json(500, { error: error.message });
-      authUsers.push(...data.users);
-      if (data.users.length < 1000) break;
-    }
-    const byId = new Map(authUsers.map((x) => [x.id, x]));
-    const { data: staff, error } = await admin.from('profiles').select('id, role, full_name, email, title, status, last_sign_in_at, created_at')
-      .neq('role', 'student').order('role').order('full_name');
-    if (error) return json(500, { error: error.message });
-    const { count: total } = await admin.from('students').select('id', { count: 'exact', head: true });
-    const { count: withAccount } = await admin.from('students').select('id', { count: 'exact', head: true }).not('user_id', 'is', null);
+    // sign-in and two-factor status for staff only (paging every auth user, students included, got slow past a few thousand)
+    const [{ data: staff, error }, { data: info, error: iErr }, { count: total }, { count: withAccount }] = await Promise.all([
+      admin.from('profiles').select('id, role, full_name, email, title, status, last_sign_in_at, created_at').neq('role', 'student').order('role').order('full_name'),
+      admin.rpc('staff_auth_info'),
+      admin.from('students').select('id', { count: 'exact', head: true }),
+      admin.from('students').select('id', { count: 'exact', head: true }).not('user_id', 'is', null),
+    ]);
+    if (error || iErr) return json(500, { error: (error ?? iErr)!.message });
+    const byId = new Map((info as { id: string; last_sign_in_at: string | null; mfa: boolean }[]).map((x) => [x.id, x]));
     return json(200, {
       staff: staff.map((p) => {
         const a = byId.get(p.id);
-        return { ...p, mfa: (a?.factors ?? []).some((f) => f.status === 'verified'), last_sign_in_at: a?.last_sign_in_at ?? p.last_sign_in_at, invited_pending: !a?.last_sign_in_at };
+        return { ...p, mfa: a?.mfa ?? false, last_sign_in_at: a?.last_sign_in_at ?? p.last_sign_in_at, invited_pending: !a?.last_sign_in_at };
       }),
       students: { total: total ?? 0, with_account: withAccount ?? 0 },
     });
@@ -123,25 +119,44 @@ Deno.serve(async (req) => {
     const { data: list, error } = await q;
     if (error) return json(500, { error: error.message });
 
-    const slips: { matric_no: string; student_code: string; full_name: string; email: string | null; password: string; new_account: boolean }[] = [];
+    // suspended accounts are not silently reactivated by a password reset
+    const userIds = list.map((s) => s.user_id).filter(Boolean) as string[];
+    const suspended = new Set<string>();
+    if (userIds.length) {
+      const { data: st } = await admin.from('profiles').select('id, status').in('id', userIds);
+      for (const p of st ?? []) if (p.status !== 'active') suspended.add(p.id);
+    }
+
+    type Slip = { matric_no: string; student_code: string; full_name: string; email: string | null; password: string; new_account: boolean };
+    const slips: Slip[] = [];
     const failed: { matric_no: string; reason: string }[] = [];
-    for (const s of list) {
+    async function issueOne(s: (typeof list)[number]) {
       const password = tempPassword();
       if (s.user_id) {
+        if (suspended.has(s.user_id)) { failed.push({ matric_no: s.matric_no, reason: 'Account is suspended — reactivate it first' }); return; }
         const { error: e } = await admin.auth.admin.updateUserById(s.user_id, { password });
-        if (e) { failed.push({ matric_no: s.matric_no, reason: e.message }); continue; }
-        await admin.from('profiles').update({ must_change_password: true, status: 'active' }).eq('id', s.user_id);
+        if (e) { failed.push({ matric_no: s.matric_no, reason: e.message }); return; }
+        await admin.rpc('mark_temp_password', { p_user: s.user_id });
         slips.push({ ...s, password, new_account: false });
       } else {
         const email = `${s.student_code.toLowerCase()}@${STUDENT_EMAIL_DOMAIN}`;
         const { data: cu, error: e } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
-        if (e) { failed.push({ matric_no: s.matric_no, reason: e.message }); continue; }
+        if (e) { failed.push({ matric_no: s.matric_no, reason: e.message }); return; }
         const { error: pe } = await admin.from('profiles').insert({ id: cu.user.id, role: 'student', full_name: s.full_name, email, must_change_password: true });
         const { error: le } = pe ? { error: pe } : await admin.from('students').update({ user_id: cu.user.id }).eq('id', s.id);
-        if (pe || le) { await admin.auth.admin.deleteUser(cu.user.id); failed.push({ matric_no: s.matric_no, reason: (pe ?? le)!.message }); continue; }
+        if (pe || le) { await admin.auth.admin.deleteUser(cu.user.id); failed.push({ matric_no: s.matric_no, reason: (pe ?? le)!.message }); return; }
+        await admin.rpc('mark_temp_password', { p_user: cu.user.id });
         slips.push({ ...s, password, new_account: true });
       }
     }
+    // A few at a time, and stop starting new ones well before the edge-function time limit, so the
+    // response (the only copy of the passwords) always gets back. Anyone not reached is reported as remaining.
+    const deadline = Date.now() + 90_000;
+    let next = 0;
+    await Promise.all(Array.from({ length: 6 }, async () => {
+      while (next < list.length && Date.now() < deadline) await issueOne(list[next++]);
+    }));
+    const remaining = list.length - next;
     const created = slips.filter((x) => x.new_account).length, reset = slips.length - created;
 
     // Email each student their details. The password only travels in the email; nothing is stored.
@@ -170,7 +185,7 @@ Deno.serve(async (req) => {
     if (slips.length) await audit('Issue student passwords', `${created} accounts created, ${reset} passwords reset, ${emailed.size} emailed${failed.length ? `, ${failed.length} failed` : ''}`);
     return json(200, {
       slips: slips.map(({ matric_no, student_code, full_name, email, password }) => ({ matric_no, student_code, full_name, email, password, emailed: emailed.has(matric_no) })),
-      failed, more: !ids && list.length === 500, email_problem: emailProblem,
+      failed, remaining, more: remaining > 0 || (!ids && list.length === 500), email_problem: emailProblem,
     });
   }
 

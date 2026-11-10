@@ -20,6 +20,7 @@ export function Archive() {
   const [failedOnly, setFailedOnly] = useState(false);
   const [running, setRunning] = useState(false);
   const [lastRun, setLastRun] = useState<{ checked: number; failed: number } | null>(null);
+  const [progress, setProgress] = useState<number | null>(null);
   const [vr, setVr] = useState<{ name: string; hash: string; match: FileRow | null } | null>(null);
   const [over, setOver] = useState(false);
 
@@ -41,18 +42,30 @@ export function Archive() {
     return { files, total: r.count ?? 0, integ: Object.fromEntries(integ.map((i) => [i.file_id, i])), failedN: failedIds.size, counts };
   }, [kind, failedOnly]);
 
+  /** The server checks files in batches of about 100 s; keep calling with the run id until it reports done. */
   async function verifyAll() {
-    setRunning(true);
+    setRunning(true); setProgress(0);
     try {
-      const r = await invokeFn<{ checked: number; failed: number }>('integrity-check', {});
-      setLastRun(r);
-      toast(r.failed ? `${r.failed} file${r.failed > 1 ? 's' : ''} failed verification` : `All ${r.checked} files verified`);
+      type Step = { done: boolean; busy?: boolean; run_id?: string; checked: number; failed?: number };
+      let r = await invokeFn<Step>('integrity-check', {});
+      for (let waits = 0; !r.done; ) {
+        setProgress(r.checked);
+        if (r.busy) {
+          // another check (e.g. the nightly one) holds this run; wait for it rather than starting a second
+          if (++waits > 40) throw new Error('Another integrity check is still running. Try again later.');
+          await new Promise((ok) => setTimeout(ok, 15000));
+        }
+        r = await invokeFn<Step>('integrity-check', { run_id: r.run_id });
+      }
+      const res = { checked: r.checked, failed: r.failed ?? 0 };
+      setLastRun(res);
+      toast(res.failed ? `${res.failed} file${res.failed > 1 ? 's' : ''} failed verification` : `All ${res.checked} files verified`);
       reload();
       window.dispatchEvent(new Event('alerts-changed'));
     } catch (e) {
       toast(errText(e));
     } finally {
-      setRunning(false);
+      setRunning(false); setProgress(null);
     }
   }
 
@@ -75,7 +88,7 @@ export function Archive() {
   return (
     <>
       <PageTop title="Digital archive" sub="Preserved copies with SHA-256 fingerprints"
-        actions={<button className="btn pri" disabled={running} onClick={verifyAll}>{running ? 'Re-hashing…' : 'Verify all files'}</button>} />
+        actions={<button className="btn pri" disabled={running} onClick={verifyAll}>{running ? `Re-hashing…${progress ? ` ${progress.toLocaleString()} files` : ''}` : 'Verify all files'}</button>} />
       <div className="content">
         <div className="grid g21" style={{ marginBottom: 16 }}>
           <div className="card">

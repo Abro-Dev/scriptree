@@ -51,6 +51,12 @@ function sniff(b: Uint8Array): 'pdf' | 'jpg' | 'png' | null {
   return null;
 }
 
+/** Size of the uploaded object from storage metadata, so an oversized upload is refused without downloading it. */
+async function uploadSize(admin: ReturnType<typeof createClient>, bucket: string, path: string): Promise<number | null> {
+  const { data } = await admin.rpc('upload_size', { p_bucket: bucket, p_path: path });
+  return typeof data === 'number' ? data : data == null ? null : Number(data);
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json(405, { error: 'POST only' });
@@ -83,12 +89,15 @@ Deno.serve(async (req) => {
 
   const discard = () => admin.storage.from(bucket).remove([path]);
 
+  const { data: settings } = await admin.from('settings').select('max_file_mb, allow_pdf_upload, allow_photo_snaps').single();
+  const maxBytes = (settings?.max_file_mb ?? 20) * 1048576;
+  const size = await uploadSize(admin, bucket, path);
+  if (size == null) return json(400, { error: 'Upload not found — try again' });
+  if (size === 0 || size > maxBytes) { await discard(); return json(400, { error: `File must be under ${settings?.max_file_mb ?? 20} MB` }); }
+
   const { data: blob, error: dlErr } = await admin.storage.from(bucket).download(path);
   if (dlErr || !blob) return json(400, { error: 'Upload not found — try again' });
   const bytes = new Uint8Array(await blob.arrayBuffer());
-
-  const { data: settings } = await admin.from('settings').select('max_file_mb, allow_pdf_upload, allow_photo_snaps').single();
-  const maxBytes = (settings?.max_file_mb ?? 20) * 1048576;
   if (bytes.length === 0 || bytes.length > maxBytes) { await discard(); return json(400, { error: `File must be under ${settings?.max_file_mb ?? 20} MB` }); }
   if (body.method === 'pdf' && settings && !settings.allow_pdf_upload) { await discard(); return json(400, { error: 'PDF upload is turned off in settings' }); }
   if (body.method === 'snap' && settings && !settings.allow_photo_snaps) { await discard(); return json(400, { error: 'Photo snaps are turned off in settings' }); }
@@ -122,11 +131,15 @@ async function registerDoc(admin: ReturnType<typeof createClient>, uid: string, 
   const name = String(body.name ?? 'document').replace(/[^\w.\- ]+/g, '_').slice(0, 200) || 'document';
   const discard = () => admin.storage.from(bucket).remove([path]);
 
+  const { data: settings } = await admin.from('settings').select('max_file_mb').single();
+  const maxMb = (settings as { max_file_mb?: number } | null)?.max_file_mb ?? 20;
+  const size = await uploadSize(admin, bucket, path);
+  if (size == null) return json(400, { error: 'Upload not found — try again' });
+  if (size === 0 || size > maxMb * 1048576) { await discard(); return json(400, { error: `File must be under ${maxMb} MB` }); }
+
   const { data: blob, error: dlErr } = await admin.storage.from(bucket).download(path);
   if (dlErr || !blob) return json(400, { error: 'Upload not found — try again' });
   const bytes = new Uint8Array(await blob.arrayBuffer());
-  const { data: settings } = await admin.from('settings').select('max_file_mb').single();
-  const maxMb = (settings as { max_file_mb?: number } | null)?.max_file_mb ?? 20;
   if (bytes.length === 0 || bytes.length > maxMb * 1048576) { await discard(); return json(400, { error: `File must be under ${maxMb} MB` }); }
   const type = sniff(bytes);
   if (!type) { await discard(); return json(400, { error: 'Upload a PDF, JPEG or PNG' }); }

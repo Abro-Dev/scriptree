@@ -13,7 +13,7 @@ import { AddStudentModal, ImportStudentsModal } from './StudentModals';
 interface StaffRow { id: string; role: Role; full_name: string; email: string; title: string | null; status: 'active' | 'suspended'; last_sign_in_at: string | null; mfa: boolean; invited_pending: boolean }
 interface ListResult { staff: StaffRow[]; students: { total: number; with_account: number } }
 interface Slip { matric_no: string; student_code: string; full_name: string; password: string; email?: string | null; emailed?: boolean }
-interface IssueResult { slips: Slip[]; failed: { matric_no: string; reason: string }[]; more: boolean; email_problem?: string | null }
+interface IssueResult { slips: Slip[]; failed: { matric_no: string; reason: string }[]; more: boolean; remaining?: number; email_problem?: string | null }
 
 const ROLE_PILL: Record<string, [string, string]> = { admin: ['Admin', 'p-info'], officer: ['Exams Officer', 'p-live'], invigilator: ['Invigilator', 'p-pend'] };
 const PERMS: [string, number, number, number, number][] = [
@@ -202,7 +202,7 @@ export function Users() {
             </p>
             {issued.email_problem && <div className="banner warn" style={{ marginBottom: 10 }}>{issued.email_problem}</div>}
             {issued.failed.length > 0 && <div className="banner crit" style={{ marginBottom: 10 }}>{issued.failed.length} failed: {issued.failed.slice(0, 3).map((f) => `${f.matric_no} (${f.reason})`).join('; ')}</div>}
-            {issued.more && <div className="banner warn" style={{ marginBottom: 10 }}>Issued in batches of 500 — run it again for the rest.</div>}
+            {issued.more && <div className="banner warn" style={{ marginBottom: 10 }}>This batch stopped before everyone was reached{issued.remaining ? ` (${issued.remaining} left)` : ''} — run it again for the rest.</div>}
             <div style={{ maxHeight: 220, overflow: 'auto', border: '1px solid var(--line)', borderRadius: 10 }}>
               <table><tbody>{issued.slips.map((s) => <tr key={s.matric_no}>
                 <td className="mono">{s.matric_no}</td><td className="small">{s.full_name}</td>
