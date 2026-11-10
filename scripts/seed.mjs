@@ -71,8 +71,7 @@ if (!session) {
     course_code: 'CSC 409', course_title: 'Artificial Intelligence', exam_date: today, start_time: '09:00',
     venue: 'Hall D', invigilator_id: staffIds['i.danladi@school.edu.ng'], attendance_mode: 'start', created_by: staffIds['a.okoro@school.edu.ng'],
   }).select('*').single(), 'create session');
-  const yymmdd = today.replace(/-/g, '').slice(2);
-  const regs = studentIds.slice(0, 30).map((sid, i) => ({ session_id: session.id, student_id: sid, seq: i + 1, script_code: `CSC409-${yymmdd}-${String(i + 1).padStart(3, '0')}` }));
+  const regs = studentIds.slice(0, 30).map((sid, i) => ({ session_id: session.id, student_id: sid, seq: i + 1 }));
   must(await db.from('registrations').insert(regs), 'registrations');
 }
 

@@ -82,7 +82,7 @@ function NewSessionModal({ onClose, onCreated }: { onClose: () => void; onCreate
   return (
     <Modal onClose={onClose}>
       <h3>New exam session</h3>
-      <p className="muted small">Creates the session. Import the registered candidates next; each gets a script ID.</p>
+      <p className="muted small">Creates the session. Import the registered candidates next. Each script gets its ID (student ID + course code) when it's handed in.</p>
       <form onSubmit={submit} noValidate>
         <div className="grid g2" style={{ margin: '14px 0' }}>
           <input className="input" placeholder="Course code e.g. CSC 411" value={f.code} onChange={set('code')} maxLength={10} aria-label="Course code" />

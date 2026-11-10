@@ -41,7 +41,7 @@ export function CheckInTab({ d, live, reload }: TabProps) {
       <div className="card">
         <h3>Check in a script</h3>
         <div className="small muted" style={{ marginBottom: 10 }}>
-          Type the matric number, student ID code (e.g. ST210034) or script ID. If booklets carry a QR label, it holds the script ID.
+          Type the matric number, student ID code (e.g. ST210034) or script ID (student ID + course code, e.g. ST210034-CSC409). The script ID is created here, when the booklet is handed in.
           {auto && <b> Checking in also marks the student present.</b>}
         </div>
         <form className="row" onSubmit={(e: FormEvent) => { e.preventDefault(); submit(); }}>
