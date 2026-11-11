@@ -5,6 +5,7 @@ import type { Role } from '../lib/types';
 import { isEmail, isMatric, isStudentCode } from '../lib/validate';
 import { Logo } from '../components/Logo';
 import { clearIdleFlag, readIdleFlag } from '../lib/idle';
+import { SITE_URL } from '../lib/site';
 
 const PORTALS: Record<Role, { t: string; d: string; idLabel: string; col: [string, string] }> = {
   admin: { t: 'Admin', d: 'User accounts, roles, system settings and the audit log.', idLabel: 'Staff email', col: ['#efeafe', '#5b3fb6'] },
@@ -65,7 +66,7 @@ function SignInForm({ role, onBack }: { role: Role; onBack: () => void }) {
     setErr(''); setSent('');
     const v = id.trim().toLowerCase();
     if (!isEmail(v)) { setErr('Enter your staff email first, then choose “Forgot password?”.'); return; }
-    const { error } = await supabase.auth.resetPasswordForEmail(v, { redirectTo: window.location.origin });
+    const { error } = await supabase.auth.resetPasswordForEmail(v, { redirectTo: SITE_URL });
     // same message either way, so the form doesn't reveal which emails have accounts
     if (error && !/rate|limit/i.test(error.message)) { setErr(error.message); return; }
     setSent(error ? 'Too many requests — wait a minute and try again.' : `If ${v} has an account, a reset link is on its way.`);

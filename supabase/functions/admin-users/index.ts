@@ -10,6 +10,7 @@
 //
 // Deploy:  npx supabase functions deploy admin-users
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { studentDetailsEmail } from '../_shared/email.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -20,6 +21,11 @@ const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 
 const STUDENT_EMAIL_DOMAIN = 'students.scriptree.local';
+// Where emailed links point. Set by the server, never taken from the request, so an email can't be
+// made to link anywhere else. Override with the SITE_URL secret (e.g. for a staging project).
+const SITE_URL = (Deno.env.get('SITE_URL') ?? 'https://scriptree.dev').replace(/\/+$/, '');
+const DEFAULT_FROM = 'ScripTree <noreply@scriptree.dev>';
+const ROLE_LABEL: Record<string, string> = { admin: 'System admin', officer: 'Exams officer', invigilator: 'Invigilator' };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -35,22 +41,6 @@ function tempPassword() {
   const r = crypto.getRandomValues(new Uint32Array(12));
   const s = Array.from(r, (n) => A[n % A.length]).join('');
   return `${s.slice(0, 4)}-${s.slice(4, 8)}-${s.slice(8)}`;
-}
-
-function studentEmail(s: { full_name: string; matric_no: string; student_code: string; password: string }, site: string | null) {
-  return [
-    `Hello ${s.full_name},`,
-    '',
-    'An account has been set up for you on ScripTree, where you can follow your exam scripts and upload your documents.',
-    '',
-    `Sign in${site ? ` at ${site}` : ''} → Student, with:`,
-    `  Matric number:      ${s.matric_no}   (or student ID ${s.student_code})`,
-    `  One-time password:  ${s.password}`,
-    '',
-    'You will be asked to choose your own password straight away. The one-time password then stops working.',
-    '',
-    'If you did not expect this email, contact your exams office.',
-  ].join('\n');
 }
 
 Deno.serve(async (req) => {
@@ -102,8 +92,11 @@ Deno.serve(async (req) => {
     if (email.endsWith('@' + STUDENT_EMAIL_DOMAIN)) return json(400, { error: 'That address is reserved for student accounts' });
     if (full_name.length < 2) return json(400, { error: 'Enter the full name' });
     if (!['admin', 'officer', 'invigilator'].includes(role)) return json(400, { error: 'Choose a role' });
-    const redirectTo = String(body.redirect_to ?? '') || undefined;
-    const { data, error } = await admin.auth.admin.inviteUserByEmail(email, { redirectTo });
+    const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
+      redirectTo: SITE_URL,
+      // shown in the invite email template ({{ .Data.full_name }} etc.)
+      data: { full_name, role_label: ROLE_LABEL[role], title: title ?? '' },
+    });
     if (error) return json(400, { error: error.message.includes('already') ? 'An account with that email already exists' : error.message });
     const { error: pErr } = await admin.from('profiles').insert({ id: data.user.id, role, full_name, email, title });
     if (pErr) { await admin.auth.admin.deleteUser(data.user.id); return json(400, { error: pErr.message }); }
@@ -166,15 +159,14 @@ Deno.serve(async (req) => {
     const apiKey = Deno.env.get('RESEND_API_KEY');
     if (toSend.length && !apiKey) emailProblem = 'Email isn’t set up (RESEND_API_KEY missing), so nothing was emailed. Print the slips instead.';
     else if (toSend.length) {
-      const from = Deno.env.get('STUDENT_FROM') ?? Deno.env.get('ALERT_FROM') ?? 'ScripTree <onboarding@resend.dev>';
-      const site = /^https?:\/\/[^\s/]+$/.test(String(body.login_url ?? '')) ? String(body.login_url) : null;
+      const from = Deno.env.get('STUDENT_FROM') ?? Deno.env.get('ALERT_FROM') ?? DEFAULT_FROM;
       for (let i = 0; i < toSend.length; i += 100) {   // Resend batch limit
         const batch = toSend.slice(i, i + 100);
         try {
           const r = await fetch('https://api.resend.com/emails/batch', {
             method: 'POST',
             headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify(batch.map((s) => ({ from, to: [s.email], subject: 'Your ScripTree sign-in details', text: studentEmail(s, site) }))),
+            body: JSON.stringify(batch.map((s) => ({ from, to: [s.email], ...studentDetailsEmail(s, SITE_URL) }))),
           });
           if (r.ok) batch.forEach((s) => emailed.add(s.matric_no));
           else emailProblem = `Email provider ${r.status}: ${(await r.text()).slice(0, 200)}`;

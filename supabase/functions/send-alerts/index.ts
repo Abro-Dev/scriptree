@@ -1,12 +1,15 @@
 // send-alerts — delivers the notifications outbox by email. Called every 5 minutes by pg_cron
 // (x-scriptree-cron header, checked against Vault by is_cron_request()). Uses Resend's HTTP API; any provider with an HTTP API can be swapped in.
 //
-// Secrets:  npx supabase secrets set RESEND_API_KEY=re_... ALERT_FROM="ScripTree <alerts@your-domain>"
+// Secrets:  npx supabase secrets set RESEND_API_KEY=re_... ALERT_FROM="ScripTree <alerts@scriptree.dev>"
+//           (optional) SITE_URL=https://scriptree.dev, where the alert's button links (design: ../_shared/email.ts)
 // Deploy:   npx supabase functions deploy send-alerts
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { alertEmail } from '../_shared/email.ts';
 
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 const MAX_ATTEMPTS = 5;
+const SITE_URL = (Deno.env.get('SITE_URL') ?? 'https://scriptree.dev').replace(/\/+$/, '');
 
 Deno.serve(async (req) => {
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -17,9 +20,9 @@ Deno.serve(async (req) => {
   const { data: settings } = await admin.from('settings').select('alert_email').single();
   const to = settings?.alert_email as string | null;
   const apiKey = Deno.env.get('RESEND_API_KEY');
-  const from = Deno.env.get('ALERT_FROM') ?? 'ScripTree <onboarding@resend.dev>';
+  const from = Deno.env.get('ALERT_FROM') ?? 'ScripTree <alerts@scriptree.dev>';
 
-  const { data: queue, error } = await admin.from('notifications').select('id, subject, body, attempts')
+  const { data: queue, error } = await admin.from('notifications').select('id, kind, subject, body, attempts, created_at')
     .is('sent_at', null).lt('attempts', MAX_ATTEMPTS).order('id').limit(20);
   if (error) return json(500, { error: error.message });
 
@@ -32,10 +35,11 @@ Deno.serve(async (req) => {
     if (!to) { await admin.from('notifications').update({ last_error: 'No alert email set in settings' }).eq('id', n.id); continue; }
     if (!apiKey) { await admin.from('notifications').update({ last_error: 'RESEND_API_KEY is not set on the edge function' }).eq('id', n.id); continue; }
     try {
+      const mail = alertEmail(n, SITE_URL);
       const r = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from, to: [to], subject: n.subject, text: n.body }),
+        body: JSON.stringify({ from, to: [to], subject: mail.subject, html: mail.html, text: mail.text }),
       });
       if (!r.ok) { await fail(n.id, n.attempts, `Email provider ${r.status}: ${await r.text()}`); continue; }
       await admin.from('notifications').update({ sent_at: new Date().toISOString(), sent_to: to, attempts: n.attempts + 1, last_error: null }).eq('id', n.id);

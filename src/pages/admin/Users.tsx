@@ -9,6 +9,7 @@ import { isEmail } from '../../lib/validate';
 import type { Role } from '../../lib/types';
 import { downloadStudentTemplate } from '../../lib/csv';
 import { AddStudentModal, ImportStudentsModal } from './StudentModals';
+import { SITE_URL } from '../../lib/site';
 
 interface StaffRow { id: string; role: Role; full_name: string; email: string; title: string | null; status: 'active' | 'suspended'; last_sign_in_at: string | null; mfa: boolean; invited_pending: boolean }
 interface ListResult { staff: StaffRow[]; students: { total: number; with_account: number } }
@@ -30,7 +31,7 @@ const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 function printSlips(slips: Slip[]) {
   const w = window.open('', '_blank', 'width=900,height=700');
   if (!w) return false;
-  const origin = esc(window.location.origin);
+  const origin = esc(SITE_URL);
   w.document.write(`<!doctype html><html><head><title>ScripTree sign-in slips</title><style>
     body{font-family:system-ui,sans-serif;margin:16px;color:#18203a} .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
     .slip{border:1.5px dashed #8189a3;border-radius:10px;padding:12px 14px;break-inside:avoid}
@@ -74,7 +75,7 @@ export function Users() {
   async function issue(ids?: string[]) {
     setBusy('issue');
     try {
-      const r = await invokeFn<IssueResult>('admin-users', { action: 'issue_student_passwords', login_url: window.location.origin, ...(ids ? { student_ids: ids } : {}) });
+      const r = await invokeFn<IssueResult>('admin-users', { action: 'issue_student_passwords', ...(ids ? { student_ids: ids } : {}) });
       if (!r.slips.length && !r.failed.length) toast('Every student already has a sign-in account');
       else setIssued(r);
       reload();
@@ -235,7 +236,7 @@ function AddStaffModal({ onClose, onDone }: { onClose: () => void; onDone: () =>
     if (!isEmail(f.email)) return setErr('Enter a valid staff email.');
     setBusy(true); setErr('');
     try {
-      await invokeFn('admin-users', { action: 'invite_staff', full_name: f.name.trim(), email: f.email.trim(), role: f.role, title: f.title.trim(), redirect_to: window.location.origin });
+      await invokeFn('admin-users', { action: 'invite_staff', full_name: f.name.trim(), email: f.email.trim(), role: f.role, title: f.title.trim() });
       toast('Account created — invite sent'); onDone();
     } catch (ex) { setErr(errText(ex)); } finally { setBusy(false); }
   }

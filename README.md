@@ -27,10 +27,19 @@ Stack: React 19 + Vite + TypeScript · Supabase (Postgres, Auth with TOTP two-fa
    for f in register-file integrity-check admin-users send-alerts student-login; do
      npx supabase functions deploy $f --no-verify-jwt
    done
-   npx supabase secrets set RESEND_API_KEY=re_... ALERT_FROM="ScripTree <alerts@your-domain>"
+   npx supabase secrets set RESEND_API_KEY=re_... ALERT_FROM="ScripTree <alerts@scriptree.dev>"      STUDENT_FROM="ScripTree <noreply@scriptree.dev>" SITE_URL=https://scriptree.dev
    ```
-   Alert emails use [Resend](https://resend.com) (verify your sending domain there). Without the key,
-   alerts queue up and Settings shows why they haven't gone out.
+   Alert and student emails use [Resend](https://resend.com); `scriptree.dev` must be a verified
+   domain there. Emailed links always point at `SITE_URL` (default `https://scriptree.dev`). Without
+   the key, alerts queue up and Settings shows why they haven't gone out.
+7. **Auth emails** (staff invites, password resets) are sent by Supabase Auth, not the functions.
+   Its built-in mailer only reaches project team members and is limited to a few emails an hour, so
+   point it at Resend: Authentication → Emails → SMTP Settings → host `smtp.resend.com`, port `465`,
+   user `resend`, password = the Resend API key, sender `noreply@scriptree.dev`, name `ScripTree`.
+   Then paste the branded templates: Authentication → Emails → Templates (and → Security notifications),
+   one file from `supabase/templates/` per template, with the subject from `supabase/templates/SUBJECTS.md`.
+   The design lives in `supabase/functions/_shared/email.ts`, shared with the student and alert emails;
+   after changing it run `npm run email:templates` and paste again.
 5. **App.** `cp .env.example .env.local` and fill in the URL, anon key and service-role key, then
    `npm install`, `npm run seed` (demo accounts, prints the logins) and `npm run dev`.
 6. **Check** in the app as admin: Settings shows "Nightly check scheduled · alert sender running";
@@ -49,8 +58,11 @@ Stack: React 19 + Vite + TypeScript · Supabase (Postgres, Auth with TOTP two-fa
    **Never add `SUPABASE_SERVICE_ROLE_KEY` to Vercel.** It's only for `npm run seed` on your machine,
    and any `VITE_` variable is bundled into the public JavaScript.
 3. Redeploy after adding or changing variables. Vite bakes them in at build time.
-4. In Supabase → Authentication → URL Configuration, set the Site URL to your Vercel domain and add
-   `https://<your-domain>/**` to the redirect URLs, or invite and password-reset links will point at localhost.
+   - `VITE_SITE_URL`: `https://scriptree.dev` (Production only), the address printed on sign-in
+     slips and used for password-reset links. Leave it unset elsewhere and the app uses its own address.
+4. In Supabase → Authentication → URL Configuration, set the Site URL to `https://scriptree.dev` and add
+   `https://scriptree.dev/**` (and `http://localhost:5173/**` for local work) to the redirect URLs, or
+   invite and password-reset links will point at localhost.
 
 | Edge function | Called by | Does |
 |---|---|---|
