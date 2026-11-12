@@ -163,7 +163,7 @@ export function ImportModal({ sessions, initial, onClose }: { sessions: SessionS
       </label>}
       {rows && !result && <div className="small" style={{ marginBottom: 10 }}>
         <div>{rows.length - bad.length - dupes.length} valid rows for {s?.course_code}.</div>
-        {bad.length > 0 && <div style={{ color: 'var(--crit)' }}>{bad.length} with an invalid matric number (e.g. “{bad[0].matric_no}”) — will be skipped.</div>}
+        {bad.length > 0 && <div style={{ color: 'var(--crit)' }}>{bad.length} with an invalid matric number (e.g. “{bad[0].matric_no}”; expected like BU/24C/IT/10778) — will be skipped.</div>}
         {dupes.length > 0 && <div style={{ color: 'var(--med)' }}>{dupes.length} duplicate rows in the file — imported once.</div>}
       </div>}
       {result && <div className="banner ok" style={{ marginBottom: 10 }}>

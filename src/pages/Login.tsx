@@ -77,7 +77,7 @@ function SignInForm({ role, onBack }: { role: Role; onBack: () => void }) {
     setErr('');
     const v = id.trim();
     if (role === 'student' ? !(isMatric(v) || isStudentCode(v)) : !isEmail(v)) {
-      setErr(role === 'student' ? 'Enter a matric number (e.g. CSC/21/1034) or student ID (e.g. ST210034).' : 'Enter your staff email.');
+      setErr(role === 'student' ? 'Enter a matric number (e.g. BU/24C/IT/10778) or student ID (e.g. ST210034).' : 'Enter your staff email.');
       return;
     }
     if (pw.length < 8) { setErr('Password must be at least 8 characters.'); return; }

@@ -61,9 +61,9 @@ export function downloadCsvFile(name: string, rows: string[][]) {
 }
 
 const SAMPLE: string[][] = [
-  ['CSC/21/1001', 'Chinedu Okafor', 'ST210001', 'chinedu.okafor@example.com', 'Computer Science', '400L'],
-  ['CSC/21/1002', 'Aisha Bello', 'ST210002', 'aisha.bello@example.com', 'Computer Science', '400L'],
-  ['MTH/22/0457', 'Ngozi Adeyemi', 'ST220457', 'ngozi.adeyemi@example.com', 'Mathematics', '300L'],
+  ['BU/21A/CS/10001', 'Chinedu Okafor', 'ST210001', 'chinedu.okafor@example.com', 'Computer Science', '400L'],
+  ['BU/21A/CS/10002', 'Aisha Bello', 'ST210002', 'aisha.bello@example.com', 'Computer Science', '400L'],
+  ['BU/22B/MTH/10457', 'Ngozi Adeyemi', 'ST220457', 'ngozi.adeyemi@example.com', 'Mathematics', '300L'],
 ];
 export const downloadStudentTemplate = () => downloadCsvFile('scriptree-students-template.csv', [[...STUDENT_COLUMNS], ...SAMPLE]);
 export const downloadCandidateTemplate = (courseCode = 'CSC 409') =>

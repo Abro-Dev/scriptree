@@ -207,7 +207,7 @@ export function alertBodyHtml(body: string) {
       const m = /^\s*[•\-*]\s+(.*)$/.exec(line);
       if (m) {
         if (para.length) { out.push(p(para.join('<br>'))); para.length = 0; }
-        // "CSC/21/1001 Ada Obi — Missing script": emphasise what comes before the dash
+        // "BU/24C/IT/10778 Ada Obi — Missing script": emphasise what comes before the dash
         const [who, ...what] = m[1].split(' — ');
         list.push(what.length ? `<strong>${esc(who)}</strong> <span style="color:${BRAND.ink2}">— ${esc(what.join(' — '))}</span>` : esc(m[1]));
       } else if (line.trim()) {

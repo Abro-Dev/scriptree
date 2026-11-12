@@ -55,7 +55,7 @@ for (const s of STAFF) {
 console.log(`Students (${N_STUDENTS})…`);
 const studentIds = [];
 for (let i = 0; i < N_STUDENTS; i++) {
-  const matric = `CSC/21/${1001 + i}`, code = `ST${210001 + i}`;
+  const matric = `BU/21A/CS/${10001 + i}`, code = `ST${210001 + i}`;
   const full_name = `${FIRST[i % FIRST.length]} ${LAST[(i * 7) % LAST.length]}`;
   const uid = await ensureUser(`${code.toLowerCase()}@${STUDENT_EMAIL_DOMAIN}`);
   must(await db.from('profiles').upsert({ id: uid, role: 'student', full_name, email: `${code.toLowerCase()}@${STUDENT_EMAIL_DOMAIN}` }), 'student profile');
@@ -80,5 +80,5 @@ Done. Password for every demo account: ${PASSWORD}
   Admin        admin@school.edu.ng      (two-factor set-up on first sign-in)
   Exams officer a.okoro@school.edu.ng   (two-factor set-up on first sign-in)
   Invigilator  i.danladi@school.edu.ng  (runs CSC 409 today, 30 registered)
-  Student      CSC/21/1001 or ST210001
+  Student      BU/21A/CS/10001 or ST210001
 `);

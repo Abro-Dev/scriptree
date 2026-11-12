@@ -24,7 +24,7 @@ export function AddStudentModal({ onClose, onDone }: { onClose: () => void; onDo
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!isMatric(f.matric_no)) return setErr('Matric number should look like CSC/21/1001.');
+    if (!isMatric(f.matric_no)) return setErr('Matric number should look like BU/24C/IT/10778 (school / year + intake A–D / department / number).');
     if (f.full_name.trim().length < 2) return setErr('Enter the full name.');
     if (!isStudentCode(f.student_code)) return setErr('Student ID should be ST followed by 4–10 digits, e.g. ST210001.');
     if (!isEmail(f.email)) return setErr('Enter the student’s email. Their sign-in details are sent there.');
@@ -44,7 +44,7 @@ export function AddStudentModal({ onClose, onDone }: { onClose: () => void; onDo
       <p className="small muted">Adds the student to the roster. They sign in with their matric number or student ID.</p>
       <form onSubmit={submit} noValidate>
         <div className="grid g2" style={{ margin: '14px 0' }}>
-          <input className="input mono" placeholder="Matric number, e.g. CSC/21/1001" maxLength={20} value={f.matric_no} onChange={(e) => set('matric_no', e.target.value)} aria-label="Matric number" autoFocus />
+          <input className="input mono" placeholder="Matric number, e.g. BU/24C/IT/10778" maxLength={24} value={f.matric_no} onChange={(e) => set('matric_no', e.target.value)} aria-label="Matric number" autoFocus />
           <input className="input mono" placeholder="Student ID, e.g. ST210001" maxLength={12} value={f.student_code} onChange={(e) => set('student_code', e.target.value)} aria-label="Student ID" />
           <input className="input" placeholder="Full name" maxLength={120} value={f.full_name} onChange={(e) => set('full_name', e.target.value)} aria-label="Full name" />
           <input className="input" type="email" placeholder="Email, e.g. name@example.com" maxLength={120} value={f.email} onChange={(e) => set('email', e.target.value)} aria-label="Email" />

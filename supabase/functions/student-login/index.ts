@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
   try { body = await req.json(); } catch { return json(400, { error: 'Bad request' }); }
   const identifier = String(body.identifier ?? '').trim().toUpperCase();
   const password = String(body.password ?? '');
-  if (!/^([A-Z]{2,5}\/[0-9]{2}\/[0-9]{3,6}|ST[0-9]{4,10})$/.test(identifier) || password.length < 8 || password.length > 128) {
+  if (!/^([A-Z]{2,5}\/[0-9]{2}[A-D]\/[A-Z]{2,5}\/[0-9]{3,6}|ST[0-9]{4,10})$/.test(identifier) || password.length < 8 || password.length > 128) {
     return json(400, { error: GENERIC });
   }
   const ip = clientIp(req);

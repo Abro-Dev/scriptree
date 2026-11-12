@@ -129,8 +129,8 @@ export function useHall(id: string | undefined) {
   return { data, error, reload };
 }
 
-// Live search over hall rows. IDs match ignoring case, spaces, slashes and dashes ("csc2021034"
-// finds "CSC/2021/034"); names match when every typed word starts a word in the name, in any order.
+// Live search over hall rows. IDs match ignoring case, spaces, slashes and dashes ("bu24cit10778"
+// finds "BU/24C/IT/10778"); names match when every typed word starts a word in the name, in any order.
 const squash = (v: string) => v.toLowerCase().replace(/[^a-z0-9]/g, '');
 export function matchRow(r: Pick<ReconRow, 'matric_no' | 'student_code' | 'full_name' | 'script_code'>, q: string): boolean {
   const t = q.trim().toLowerCase();
