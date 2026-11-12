@@ -91,14 +91,14 @@ export function SessionDetail() {
             <span className="small muted">Last run: {fmtStamp(s.last_reconciled_at)}</span>
           </div>
           <table>
-            <thead><tr><th>Matric no.</th><th>Candidate</th><th>Registered</th><th>Present</th><th>Physical</th><th>Scans</th><th>Hash</th><th>Outcome</th><th /></tr></thead>
+            <thead><tr><th>Student ID</th><th>Candidate</th><th>Registered</th><th>Present</th><th>Physical</th><th>Scans</th><th>Hash</th><th>Outcome</th><th /></tr></thead>
             <tbody>
               {shown.map((x) => {
                 const isIssue = ['crit', 'high', 'med'].includes(x.severity);
                 return (
                   <tr key={x.student_id}>
                     <td className="mono">{x.matric_no}</td>
-                    <td>{x.full_name}<div className="small muted mono">{x.student_code}</div></td>
+                    <td>{x.full_name}</td>
                     <td><Yes v={x.is_registered} /></td><td><Yes v={x.present} /></td><td><Yes v={x.has_physical} /></td>
                     <td>{x.n_scans > 1 ? <b style={{ color: 'var(--med)' }}>{x.n_scans}</b> : x.n_scans ? <span className="tick">1</span> : <span className="cross">0</span>}</td>
                     <td>{x.n_scans ? (x.integrity_bad ? <span className="cross">fail</span> : <span className="tick">ok</span>) : <span className="dash">—</span>}</td>

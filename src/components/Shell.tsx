@@ -14,7 +14,7 @@ export function Shell() {
   const drawer = useDrawer();
   if (!profile) return null;
   const subtitle = profile.role === 'student' && student
-    ? `Student · ${student.matric_no} · ${student.student_code}`
+    ? `Student · ${student.matric_no}`
     : profile.title || ROLE_LABEL[profile.role];
   return (
     <div className={`app${drawer.open ? ' drawer-open' : ''}`}>

@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useAuth } from '../lib/auth';
 import { configured, supabase } from '../lib/supabase';
 import type { Role } from '../lib/types';
-import { isEmail, isMatric, isStudentCode } from '../lib/validate';
+import { isEmail, isStudentId } from '../lib/validate';
 import { Logo } from '../components/Logo';
 import { clearIdleFlag, readIdleFlag } from '../lib/idle';
 import { SITE_URL } from '../lib/site';
@@ -11,7 +11,7 @@ const PORTALS: Record<Role, { t: string; d: string; idLabel: string; col: [strin
   admin: { t: 'Admin', d: 'User accounts, roles, system settings and the audit log.', idLabel: 'Staff email', col: ['#efeafe', '#5b3fb6'] },
   officer: { t: 'Exams Officer', d: 'Dashboard, sessions, reconciliation, archive and student documents.', idLabel: 'Staff email', col: ['#e8edff', '#2340a8'] },
   invigilator: { t: 'Invigilator', d: 'Attendance, script check-in and scan capture for live sessions.', idLabel: 'Staff email', col: ['#fff5d6', '#8d6400'] },
-  student: { t: 'Student', d: 'Exams sat, script status and your document vault.', idLabel: 'Matric number or student ID code', col: ['#ffe9e5', '#c4321d'] },
+  student: { t: 'Student', d: 'Exams sat, script status and your document vault.', idLabel: 'Student ID', col: ['#ffe9e5', '#c4321d'] },
 };
 
 function Scene() {
@@ -76,8 +76,8 @@ function SignInForm({ role, onBack }: { role: Role; onBack: () => void }) {
     e.preventDefault();
     setErr('');
     const v = id.trim();
-    if (role === 'student' ? !(isMatric(v) || isStudentCode(v)) : !isEmail(v)) {
-      setErr(role === 'student' ? 'Enter a matric number (e.g. BU/24C/IT/10778) or student ID (e.g. ST210034).' : 'Enter your staff email.');
+    if (role === 'student' ? !isStudentId(v) : !isEmail(v)) {
+      setErr(role === 'student' ? 'Enter your student ID, e.g. BU/24C/IT/10778.' : 'Enter your staff email.');
       return;
     }
     if (pw.length < 8) { setErr('Password must be at least 8 characters.'); return; }

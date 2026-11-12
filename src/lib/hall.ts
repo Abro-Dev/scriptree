@@ -21,8 +21,7 @@ export interface ExamSession {
 
 export interface ReconRow {
   student_id: string;
-  matric_no: string;
-  student_code: string;
+  matric_no: string;   // the student ID, e.g. BU/24C/IT/10778
   full_name: string;
   is_registered: boolean;
   present: boolean | null;
@@ -132,11 +131,11 @@ export function useHall(id: string | undefined) {
 // Live search over hall rows. IDs match ignoring case, spaces, slashes and dashes ("bu24cit10778"
 // finds "BU/24C/IT/10778"); names match when every typed word starts a word in the name, in any order.
 const squash = (v: string) => v.toLowerCase().replace(/[^a-z0-9]/g, '');
-export function matchRow(r: Pick<ReconRow, 'matric_no' | 'student_code' | 'full_name' | 'script_code'>, q: string): boolean {
+export function matchRow(r: Pick<ReconRow, 'matric_no' | 'full_name' | 'script_code'>, q: string): boolean {
   const t = q.trim().toLowerCase();
   if (!t) return true;
   const s = squash(t);
-  if (s && [r.matric_no, r.student_code, r.script_code ?? ''].some((id) => squash(id).includes(s))) return true;
+  if (s && [r.matric_no, r.script_code ?? ''].some((id) => squash(id).includes(s))) return true;
   const words = r.full_name.toLowerCase().split(/\s+/);
   return t.split(/\s+/).every((w) => words.some((nw) => nw.startsWith(w)));
 }

@@ -33,7 +33,7 @@ export function MyExams() {
     return { exams, docs, types };
   }, []);
 
-  const sub = student ? `${student.full_name} · ${student.matric_no} · Student ID ${student.student_code} · ${student.department} · ${student.level}` : '';
+  const sub = student ? `${student.full_name} · Student ID ${student.matric_no} · ${student.department} · ${student.level}` : '';
   if (error) return <><PageTop title="My exams" sub={sub} /><div className="content"><div className="banner crit">{error}</div></div></>;
   if (!data) return <><PageTop title="My exams" sub={sub} /><div className="content muted">Loading…</div></>;
 

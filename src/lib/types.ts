@@ -12,8 +12,7 @@ export interface Profile {
 
 export interface Student {
   id: string;
-  matric_no: string;
-  student_code: string;
+  matric_no: string;   // the student ID, e.g. BU/24C/IT/10778
   full_name: string;
   department: string;
   level: string;

@@ -53,7 +53,7 @@ export function AttendanceTab({ d, live, reload }: TabProps) {
       </div>
       <div className="table-scroll">
         <table>
-          <thead><tr><th>#</th><th>Matric no.</th><th>Student ID</th><th>Candidate</th><th>Present</th><th>Ticked</th><th>Script ID</th></tr></thead>
+          <thead><tr><th>#</th><th>Student ID</th><th>Candidate</th><th>Present</th><th>Ticked</th><th>Script ID</th></tr></thead>
           <tbody>
             {regs.map((r, i) => {
               const m = d.marks[r.student_id];
@@ -61,7 +61,6 @@ export function AttendanceTab({ d, live, reload }: TabProps) {
                 <tr key={r.student_id}>
                   <td className="muted">{i + 1}</td>
                   <td className="mono">{r.matric_no}</td>
-                  <td className="mono muted">{r.student_code}</td>
                   <td>{r.full_name}</td>
                   <td><input type="checkbox" aria-label={`${r.full_name} present`} checked={r.present === true}
                     disabled={!live || saving === r.student_id}

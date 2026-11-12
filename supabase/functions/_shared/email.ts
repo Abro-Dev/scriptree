@@ -45,7 +45,7 @@ export function button(label: string, href: string, tone: Tone = 'brand') {
 export const fallbackLink = (href: string) =>
   small(`Button not working? Copy this link into your browser:<br><a href="${href}" style="color:${BRAND.cobalt};word-break:break-all">${href}</a>`);
 
-/** Label/value rows in a soft panel, e.g. role, matric number, course. Values are HTML. */
+/** Label/value rows in a soft panel, e.g. role, student ID, course. Values are HTML. */
 export function details(rows: [string, string][], tone: Tone = 'brand') {
   const t = TONES[tone];
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:4px 0 22px;background:${t.bg};border-radius:12px">
@@ -149,7 +149,7 @@ export function layout(o: Layout) {
 }
 
 // ------------------------------------------------------------------------------------ student details
-export interface StudentDetails { full_name: string; matric_no: string; student_code: string; password: string }
+export interface StudentDetails { full_name: string; matric_no: string; password: string }   // matric_no holds the student ID
 
 export function studentDetailsEmail(s: StudentDetails, site: string) {
   const first = s.full_name.split(' ')[0];
@@ -160,11 +160,11 @@ export function studentDetailsEmail(s: StudentDetails, site: string) {
     reason: 'You get this because your exams office set up a ScripTree account for you.',
     body: [
       p('Your exams office has set up a ScripTree account for you. You can follow every exam script from the hall to the records room, and upload your documents.'),
-      details([['Matric number', `<span style="font-family:${MONO}">${esc(s.matric_no)}</span>`], ['Student ID', `<span style="font-family:${MONO}">${esc(s.student_code)}</span>`]]),
+      details([['Student ID', `<span style="font-family:${MONO}">${esc(s.matric_no)}</span>`]]),
       codeBox(esc(s.password), 'One-time password'),
       steps([
         `Go to <a href="${site}" style="color:${BRAND.cobalt};font-weight:700">${esc(site.replace(/^https?:\/\//, ''))}</a> and choose <strong style="color:${BRAND.ink}">Student</strong>.`,
-        'Enter your matric number (or student ID) and the one-time password above.',
+        'Enter your student ID and the one-time password above.',
         'Choose your own password. The one-time password stops working once you do.',
       ]),
       button('Sign in to ScripTree', site),
@@ -175,7 +175,7 @@ export function studentDetailsEmail(s: StudentDetails, site: string) {
     `Hello ${s.full_name},`, '',
     'Your exams office has set up a ScripTree account for you, where you can follow your exam scripts and upload your documents.', '',
     `Sign in at ${site} → Student, with:`,
-    `  Matric number:      ${s.matric_no}   (or student ID ${s.student_code})`,
+    `  Student ID:         ${s.matric_no}`,
     `  One-time password:  ${s.password}`, '',
     'You will be asked to choose your own password straight away. The one-time password then stops working.', '',
     'Nobody from ScripTree will ask for your password. If you did not expect this email, contact your exams office.',

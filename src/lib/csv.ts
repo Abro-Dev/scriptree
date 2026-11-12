@@ -22,17 +22,21 @@ export function parseCsv(text: string): string[][] {
   return rows;
 }
 
-export const CANDIDATE_COLUMNS = ['matric_no', 'full_name', 'student_code', 'email', 'department', 'level', 'course_code'] as const;
+// matric_no is the internal name of the student ID (e.g. BU/24C/IT/10778); files show it as student_id.
+export const CANDIDATE_COLUMNS = ['matric_no', 'full_name', 'email', 'department', 'level', 'course_code'] as const;
 export type CandidateRow = Partial<Record<(typeof CANDIDATE_COLUMNS)[number], string>>;
 
-export const STUDENT_COLUMNS = ['matric_no', 'full_name', 'student_code', 'email', 'department', 'level'] as const;
+export const STUDENT_COLUMNS = ['matric_no', 'full_name', 'email', 'department', 'level'] as const;
+
+/** Column name as people see it in files and messages. */
+const label = (c: string) => (c === 'matric_no' ? 'student_id' : c);
 export type StudentRow = Partial<Record<(typeof STUDENT_COLUMNS)[number], string>>;
 
 /** Header aliases people commonly use, mapped to our column names. */
 function normHeader(h: string) {
   const k = h.trim().toLowerCase().replace(/[\s.\-/]+/g, '_').replace(/^_+|_+$/g, '');
   return ({ matric: 'matric_no', matric_number: 'matric_no', matriculation_number: 'matric_no', name: 'full_name', student_name: 'full_name',
-    student_id: 'student_code', id_code: 'student_code', dept: 'department', course: 'course_code',
+    student_id: 'matric_no', student_no: 'matric_no', student_number: 'matric_no', id: 'matric_no', dept: 'department', course: 'course_code',
     email_address: 'email', e_mail: 'email', student_email: 'email', mail: 'email' } as Record<string, string>)[k] ?? k;
 }
 
@@ -41,7 +45,7 @@ function mapRows<C extends string>(rows: string[][], cols: readonly C[], require
   const head = rows[0].map(normHeader);
   const idx = Object.fromEntries(cols.map((c) => [c, head.indexOf(c)])) as Record<C, number>;
   const missing = required.filter((c) => idx[c] < 0);
-  if (missing.length) return { rows: [], error: `Missing column${missing.length > 1 ? 's' : ''} in the header row: ${missing.join(', ')}. Download the template to see the layout.` };
+  if (missing.length) return { rows: [], error: `Missing column${missing.length > 1 ? 's' : ''} in the header row: ${missing.map(label).join(', ')}. Download the template to see the layout.` };
   return { rows: rows.slice(1).map((r) => Object.fromEntries(cols.filter((c) => idx[c] >= 0).map((c) => [c, (r[idx[c]] ?? '').trim()])) as Partial<Record<C, string>>) };
 }
 
@@ -61,10 +65,10 @@ export function downloadCsvFile(name: string, rows: string[][]) {
 }
 
 const SAMPLE: string[][] = [
-  ['BU/21A/CS/10001', 'Chinedu Okafor', 'ST210001', 'chinedu.okafor@example.com', 'Computer Science', '400L'],
-  ['BU/21A/CS/10002', 'Aisha Bello', 'ST210002', 'aisha.bello@example.com', 'Computer Science', '400L'],
-  ['BU/22B/MTH/10457', 'Ngozi Adeyemi', 'ST220457', 'ngozi.adeyemi@example.com', 'Mathematics', '300L'],
+  ['BU/21A/CS/10001', 'Chinedu Okafor', 'chinedu.okafor@example.com', 'Computer Science', '400L'],
+  ['BU/21A/CS/10002', 'Aisha Bello', 'aisha.bello@example.com', 'Computer Science', '400L'],
+  ['BU/22B/MTH/10457', 'Ngozi Adeyemi', 'ngozi.adeyemi@example.com', 'Mathematics', '300L'],
 ];
-export const downloadStudentTemplate = () => downloadCsvFile('scriptree-students-template.csv', [[...STUDENT_COLUMNS], ...SAMPLE]);
+export const downloadStudentTemplate = () => downloadCsvFile('scriptree-students-template.csv', [STUDENT_COLUMNS.map(label), ...SAMPLE]);
 export const downloadCandidateTemplate = (courseCode = 'CSC 409') =>
-  downloadCsvFile('scriptree-candidates-template.csv', [[...CANDIDATE_COLUMNS], ...SAMPLE.map((r) => [...r, courseCode])]);
+  downloadCsvFile('scriptree-candidates-template.csv', [CANDIDATE_COLUMNS.map(label), ...SAMPLE.map((r) => [...r, courseCode])]);

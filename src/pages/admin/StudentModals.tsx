@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Modal } from '../../components/ui';
 import { supabase, errText } from '../../lib/supabase';
-import { isEmail, isMatric, isStudentCode } from '../../lib/validate';
+import { isEmail, isStudentId } from '../../lib/validate';
 import { parseCsv, toStudents, downloadStudentTemplate, type StudentRow } from '../../lib/csv';
 
 export interface AddResult { created: number; existing: number; updated: number; skipped: { matric_no: string; reason: string }[]; ids: string[] }
@@ -16,7 +16,7 @@ const LEVELS = ['100L', '200L', '300L', '400L', '500L', '600L', 'PG'];
 
 /** One student. On success, optionally hands the new student's id back so the caller can issue a one-time password. */
 export function AddStudentModal({ onClose, onDone }: { onClose: () => void; onDone: (issueFor: string | null) => void }) {
-  const [f, setF] = useState({ matric_no: '', full_name: '', student_code: '', email: '', department: '', level: '100L' });
+  const [f, setF] = useState({ matric_no: '', full_name: '', email: '', department: '', level: '100L' });
   const [issueNow, setIssueNow] = useState(true);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -24,9 +24,8 @@ export function AddStudentModal({ onClose, onDone }: { onClose: () => void; onDo
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!isMatric(f.matric_no)) return setErr('Matric number should look like BU/24C/IT/10778 (school / year + intake A–D / department / number).');
+    if (!isStudentId(f.matric_no)) return setErr('Student ID should look like BU/24C/IT/10778 (school / year + intake A–D / department / number).');
     if (f.full_name.trim().length < 2) return setErr('Enter the full name.');
-    if (!isStudentCode(f.student_code)) return setErr('Student ID should be ST followed by 4–10 digits, e.g. ST210001.');
     if (!isEmail(f.email)) return setErr('Enter the student’s email. Their sign-in details are sent there.');
     if (!f.department.trim()) return setErr('Enter the department.');
     setBusy(true); setErr('');
@@ -41,11 +40,10 @@ export function AddStudentModal({ onClose, onDone }: { onClose: () => void; onDo
   return (
     <Modal onClose={onClose}>
       <h3>Add a student</h3>
-      <p className="small muted">Adds the student to the roster. They sign in with their matric number or student ID.</p>
+      <p className="small muted">Adds the student to the roster. They sign in with their student ID.</p>
       <form onSubmit={submit} noValidate>
         <div className="grid g2" style={{ margin: '14px 0' }}>
-          <input className="input mono" placeholder="Matric number, e.g. BU/24C/IT/10778" maxLength={24} value={f.matric_no} onChange={(e) => set('matric_no', e.target.value)} aria-label="Matric number" autoFocus />
-          <input className="input mono" placeholder="Student ID, e.g. ST210001" maxLength={12} value={f.student_code} onChange={(e) => set('student_code', e.target.value)} aria-label="Student ID" />
+          <input className="input mono" placeholder="Student ID, e.g. BU/24C/IT/10778" maxLength={24} value={f.matric_no} onChange={(e) => set('matric_no', e.target.value)} aria-label="Student ID" autoFocus />
           <input className="input" placeholder="Full name" maxLength={120} value={f.full_name} onChange={(e) => set('full_name', e.target.value)} aria-label="Full name" />
           <input className="input" type="email" placeholder="Email, e.g. name@example.com" maxLength={120} value={f.email} onChange={(e) => set('email', e.target.value)} aria-label="Email" />
           <input className="input" placeholder="Department, e.g. Computer Science" maxLength={80} value={f.department} onChange={(e) => set('department', e.target.value)} aria-label="Department" />
@@ -89,7 +87,7 @@ export function ImportStudentsModal({ onClose, onDone }: { onClose: () => void; 
 
   const seen = new Set<string>();
   const dupes = (rows ?? []).filter((r) => { const m = (r.matric_no ?? '').toUpperCase(); if (seen.has(m)) return true; seen.add(m); return false; }).length;
-  const bad = (rows ?? []).filter((r) => !isMatric(r.matric_no ?? '') || !isStudentCode(r.student_code ?? '') || !isEmail(r.email ?? '')
+  const bad = (rows ?? []).filter((r) => !isStudentId(r.matric_no ?? '') || !isEmail(r.email ?? '')
     || !(r.full_name ?? '').trim() || !(r.department ?? '').trim() || !(r.level ?? '').trim());
 
   async function run() {
@@ -103,8 +101,8 @@ export function ImportStudentsModal({ onClose, onDone }: { onClose: () => void; 
     <Modal onClose={onClose}>
       <h3>Import students (CSV)</h3>
       <p className="small muted">
-        One row per student, with the columns <span className="mono">matric_no, full_name, student_code, email, department, level</span>.
-        Students already on record (same matric number) are left unchanged, except that a missing email is filled in.
+        One row per student, with the columns <span className="mono">student_id, full_name, email, department, level</span>.
+        Students already on record (same student ID) are left unchanged, except that a missing email is filled in.
       </p>
       <button type="button" className="btn sm" style={{ margin: '4px 0 10px' }} onClick={downloadStudentTemplate}>⬇ Download template</button>
       {!result && <label className="drop" style={{ margin: '4px 0 10px' }}>
@@ -113,8 +111,8 @@ export function ImportStudentsModal({ onClose, onDone }: { onClose: () => void; 
       </label>}
       {rows && !result && <div className="small" style={{ marginBottom: 10 }}>
         <div>{rows.length - bad.length - dupes} rows look ready.</div>
-        {bad.length > 0 && <div style={{ color: 'var(--crit)' }}>{bad.length} with a missing or invalid value (e.g. “{bad[0].matric_no || 'blank matric'}”). New students in those rows will be skipped; the import tells you why.</div>}
-        {dupes > 0 && <div style={{ color: 'var(--med)' }}>{dupes} duplicate matric numbers in the file — each imported once.</div>}
+        {bad.length > 0 && <div style={{ color: 'var(--crit)' }}>{bad.length} with a missing or invalid value (e.g. “{bad[0].matric_no || 'blank student ID'}”). New students in those rows will be skipped; the import tells you why.</div>}
+        {dupes > 0 && <div style={{ color: 'var(--med)' }}>{dupes} duplicate student IDs in the file — each imported once.</div>}
         <label className="row" style={{ gap: 8, marginTop: 8 }}>
           <input type="checkbox" checked={issueNow} onChange={(e) => setIssueNow(e.target.checked)} />
           Then give sign-in access to every student without an account (one-time passwords are emailed)

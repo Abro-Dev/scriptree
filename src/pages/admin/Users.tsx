@@ -13,7 +13,7 @@ import { SITE_URL } from '../../lib/site';
 
 interface StaffRow { id: string; role: Role; full_name: string; email: string; title: string | null; status: 'active' | 'suspended'; last_sign_in_at: string | null; mfa: boolean; invited_pending: boolean }
 interface ListResult { staff: StaffRow[]; students: { total: number; with_account: number } }
-interface Slip { matric_no: string; student_code: string; full_name: string; password: string; email?: string | null; emailed?: boolean }
+interface Slip { matric_no: string; full_name: string; password: string; email?: string | null; emailed?: boolean }
 interface IssueResult { slips: Slip[]; failed: { matric_no: string; reason: string }[]; more: boolean; remaining?: number; email_problem?: string | null }
 
 const ROLE_PILL: Record<string, [string, string]> = { admin: ['Admin', 'p-info'], officer: ['Exams Officer', 'p-live'], invigilator: ['Invigilator', 'p-pend'] };
@@ -37,9 +37,9 @@ function printSlips(slips: Slip[]) {
     .slip{border:1.5px dashed #8189a3;border-radius:10px;padding:12px 14px;break-inside:avoid}
     .slip b{font-size:15px} .pw{font-family:ui-monospace,monospace;font-size:18px;letter-spacing:1px;margin:6px 0}
     .s{font-size:12px;color:#4a5372} @media print{body{margin:0}}</style></head><body>
-    <div class="grid">${slips.map((x) => `<div class="slip"><b>${esc(x.full_name)}</b><div class="s">${esc(x.matric_no)} · ${esc(x.student_code)}</div>
+    <div class="grid">${slips.map((x) => `<div class="slip"><b>${esc(x.full_name)}</b><div class="s">Student ID ${esc(x.matric_no)}</div>
     <div class="s" style="margin-top:8px">One-time password</div><div class="pw">${esc(x.password)}</div>
-    <div class="s">Sign in at ${origin} → Student, with your matric number. You'll choose your own password straight away.</div></div>`).join('')}
+    <div class="s">Sign in at ${origin} → Student, with your student ID. You'll choose your own password straight away.</div></div>`).join('')}
     </div><script>window.onload=()=>window.print()</script></body></html>`);
   w.document.close();
   return true;
@@ -47,8 +47,8 @@ function printSlips(slips: Slip[]) {
 
 function downloadCsv(slips: Slip[]) {
   const q = (v: string) => `"${v.replace(/"/g, '""')}"`;
-  const csv = ['matric_no,student_code,full_name,email,emailed,one_time_password',
-    ...slips.map((s) => [s.matric_no, s.student_code, s.full_name, s.email ?? '', s.emailed ? 'yes' : 'no', s.password].map(q).join(','))].join('\r\n');
+  const csv = ['student_id,full_name,email,emailed,one_time_password',
+    ...slips.map((s) => [s.matric_no, s.full_name, s.email ?? '', s.emailed ? 'yes' : 'no', s.password].map(q).join(','))].join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
   a.download = `scriptree-student-passwords-${new Date().toISOString().slice(0, 10)}.csv`;
@@ -86,9 +86,9 @@ export function Users() {
     e.preventDefault();
     const v = lookup.trim().toUpperCase();
     if (!v) return;
-    const { data: st, error } = await supabase.from('students').select('id').or(`matric_no.eq.${v.replace(/[,()]/g, '')},student_code.eq.${v.replace(/[,()]/g, '')}`).maybeSingle();
+    const { data: st, error } = await supabase.from('students').select('id').eq('matric_no', v.toUpperCase()).maybeSingle();
     if (error) { toast(errText(error)); return; }
-    if (!st) { toast('No student with that matric number or student ID'); return; }
+    if (!st) { toast('No student with that student ID'); return; }
     await issue([st.id]); setLookup('');
   }
 
@@ -103,7 +103,7 @@ export function Users() {
         {error && <div className="banner crit" style={{ marginBottom: 16 }}>{error}</div>}
         <div className="band">
           {([['Admin', count('admin'), 'staff email + 2FA'], ['Exams officers', count('officer'), 'staff email + 2FA'], ['Invigilators', count('invigilator'), 'staff email'],
-            ['Students', data?.students.total ?? '…', `matric no. or student ID · ${data?.students.with_account ?? '…'} with accounts`]] as [string, number | string, string][]).map(([l, n, w]) =>
+            ['Students', data?.students.total ?? '…', `by student ID · ${data?.students.with_account ?? '…'} with accounts`]] as [string, number | string, string][]).map(([l, n, w]) =>
             <div key={l} className="kpi"><div className="lab">{l}</div><div className="val">{n}</div><div className="note">Sign in: {w}</div></div>)}
         </div>
 
@@ -169,7 +169,7 @@ export function Users() {
             <h3>Reset a student's password</h3>
             <div className="small muted" style={{ marginBottom: 10 }}>For a forgotten password. Emails them a new one-time password (or gives you a slip) and asks them to choose a new one.</div>
             <form className="row" onSubmit={resetOne}>
-              <input className="input" style={{ flex: 1 }} placeholder="Matric number or student ID" maxLength={40} value={lookup} onChange={(e) => setLookup(e.target.value)} aria-label="Matric number or student ID" />
+              <input className="input" style={{ flex: 1 }} placeholder="Student ID, e.g. BU/24C/IT/10778" maxLength={40} value={lookup} onChange={(e) => setLookup(e.target.value)} aria-label="Student ID" />
               <button className="btn" disabled={busy !== null}>Issue new password</button>
             </form>
           </div>

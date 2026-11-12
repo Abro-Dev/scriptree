@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
   // ------------------------------------------------------------------
   if (body.action === 'issue_student_passwords') {
     const ids = Array.isArray(body.student_ids) ? (body.student_ids as unknown[]).map(String).filter((x) => UUID.test(x)) : null;
-    let q = admin.from('students').select('id, user_id, matric_no, student_code, full_name, email').order('matric_no').limit(500);
+    let q = admin.from('students').select('id, user_id, matric_no, full_name, email').order('matric_no').limit(500);
     q = ids ? q.in('id', ids.slice(0, 500)) : q.is('user_id', null);
     const { data: list, error } = await q;
     if (error) return json(500, { error: error.message });
@@ -120,7 +120,7 @@ Deno.serve(async (req) => {
       for (const p of st ?? []) if (p.status !== 'active') suspended.add(p.id);
     }
 
-    type Slip = { matric_no: string; student_code: string; full_name: string; email: string | null; password: string; new_account: boolean };
+    type Slip = { matric_no: string; full_name: string; email: string | null; password: string; new_account: boolean };
     const slips: Slip[] = [];
     const failed: { matric_no: string; reason: string }[] = [];
     async function issueOne(s: (typeof list)[number]) {
@@ -132,7 +132,8 @@ Deno.serve(async (req) => {
         await admin.rpc('mark_temp_password', { p_user: s.user_id });
         slips.push({ ...s, password, new_account: false });
       } else {
-        const email = `${s.student_code.toLowerCase()}@${STUDENT_EMAIL_DOMAIN}`;
+        // sign-in address only (never mailed): BU/24C/IT/10778 -> bu.24c.it.10778@students.scriptree.local
+        const email = `${s.matric_no.toLowerCase().replace(/\//g, '.')}@${STUDENT_EMAIL_DOMAIN}`;
         const { data: cu, error: e } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
         if (e) { failed.push({ matric_no: s.matric_no, reason: e.message }); return; }
         const { error: pe } = await admin.from('profiles').insert({ id: cu.user.id, role: 'student', full_name: s.full_name, email, must_change_password: true });
@@ -176,7 +177,7 @@ Deno.serve(async (req) => {
 
     if (slips.length) await audit('Issue student passwords', `${created} accounts created, ${reset} passwords reset, ${emailed.size} emailed${failed.length ? `, ${failed.length} failed` : ''}`);
     return json(200, {
-      slips: slips.map(({ matric_no, student_code, full_name, email, password }) => ({ matric_no, student_code, full_name, email, password, emailed: emailed.has(matric_no) })),
+      slips: slips.map(({ matric_no, full_name, email, password }) => ({ matric_no, full_name, email, password, emailed: emailed.has(matric_no) })),
       failed, remaining, more: remaining > 0 || (!ids && list.length === 500), email_problem: emailProblem,
     });
   }

@@ -8,7 +8,7 @@ import { fmtStamp, sessionPill, type SessionSummary } from '../../lib/officer';
 import { fetchSettings, fetchSummaries } from '../../lib/queries';
 import { ATT_MODES, type AttMode } from '../../lib/hall';
 import { parseCsv, toCandidates, downloadCandidateTemplate, type CandidateRow } from '../../lib/csv';
-import { isMatric } from '../../lib/validate';
+import { isStudentId } from '../../lib/validate';
 
 export function Sessions() {
   const nav = useNavigate();
@@ -131,11 +131,11 @@ export function ImportModal({ sessions, initial, onClose }: { sessions: SessionS
 
   const seen = new Set<string>();
   const dupes = (rows ?? []).filter((r) => { const m = (r.matric_no ?? '').toUpperCase(); if (seen.has(m)) return true; seen.add(m); return false; });
-  const bad = (rows ?? []).filter((r) => !isMatric(r.matric_no ?? ''));
+  const bad = (rows ?? []).filter((r) => !isStudentId(r.matric_no ?? ''));
 
   async function run() {
     if (!rows) return;
-    const unique = [...new Map(rows.filter((r) => isMatric(r.matric_no ?? '')).map((r) => [(r.matric_no ?? '').toUpperCase(), r])).values()];
+    const unique = [...new Map(rows.filter((r) => isStudentId(r.matric_no ?? '')).map((r) => [(r.matric_no ?? '').toUpperCase(), r])).values()];
     setBusy(true);
     const { data, error } = await supabase.rpc('import_candidates', { p_session: sid, p_rows: unique }).single<ImportResult>();
     setBusy(false);
@@ -149,8 +149,8 @@ export function ImportModal({ sessions, initial, onClose }: { sessions: SessionS
     <Modal onClose={onClose}>
       <h3>Import registered candidates</h3>
       <p className="muted small">
-        Upload the departmental registration list as a CSV file. Only <span className="mono">matric_no</span> is required for students already on record.
-        For a student who isn't on record yet, also fill in <span className="mono">full_name, student_code, email, department, level</span> and they're added automatically.
+        Upload the departmental registration list as a CSV file. Only <span className="mono">student_id</span> is required for students already on record.
+        For a student who isn't on record yet, also fill in <span className="mono">full_name, email, department, level</span> and they're added automatically.
         <span className="mono"> course_code</span> is optional; rows for a different course are skipped.
       </p>
       <button type="button" className="btn sm" style={{ marginBottom: 4 }} onClick={() => downloadCandidateTemplate(s?.course_code)}>⬇ Download template</button>
@@ -163,7 +163,7 @@ export function ImportModal({ sessions, initial, onClose }: { sessions: SessionS
       </label>}
       {rows && !result && <div className="small" style={{ marginBottom: 10 }}>
         <div>{rows.length - bad.length - dupes.length} valid rows for {s?.course_code}.</div>
-        {bad.length > 0 && <div style={{ color: 'var(--crit)' }}>{bad.length} with an invalid matric number (e.g. “{bad[0].matric_no}”; expected like BU/24C/IT/10778) — will be skipped.</div>}
+        {bad.length > 0 && <div style={{ color: 'var(--crit)' }}>{bad.length} with an invalid student ID (e.g. “{bad[0].matric_no}”; expected like BU/24C/IT/10778) — will be skipped.</div>}
         {dupes.length > 0 && <div style={{ color: 'var(--med)' }}>{dupes.length} duplicate rows in the file — imported once.</div>}
       </div>}
       {result && <div className="banner ok" style={{ marginBottom: 10 }}>

@@ -17,7 +17,7 @@ export function CheckInTab({ d, live, reload }: TabProps) {
 
   function submit() {
     // a single live match means the invigilator has narrowed it to one person — check them in;
-    // otherwise send what was typed (a full matric/student ID, a script ID, or someone not in the list)
+    // otherwise send what was typed (a full student ID, a script ID, or someone not in the list)
     checkIn(q.trim() && shown.length === 1 ? shown[0].matric_no : q);
   }
 
@@ -41,19 +41,19 @@ export function CheckInTab({ d, live, reload }: TabProps) {
       <div className="card">
         <h3>Check in a script</h3>
         <div className="small muted" style={{ marginBottom: 10 }}>
-          Type the matric number, student ID code (e.g. ST210034) or script ID (student ID + course code, e.g. ST210034-CSC409). The script ID is created here, when the booklet is handed in.
+          Type the student ID (e.g. BU/24C/IT/10778) or script ID (student ID + course code, e.g. BU/24C/IT/10778-CSC409). The script ID is created here, when the booklet is handed in.
           {auto && <b> Checking in also marks the student present.</b>}
         </div>
         <form className="row" onSubmit={(e: FormEvent) => { e.preventDefault(); submit(); }}>
-          <input ref={input} className="input" type="search" style={{ flex: 1 }} placeholder="Matric no., student ID, script ID or name" value={q} maxLength={40}
+          <input ref={input} className="input" type="search" style={{ flex: 1 }} placeholder="Student ID, script ID or name" value={q} maxLength={40}
             onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') setQ(''); }}
-            disabled={!live || busy} aria-label="Matric number, student ID, script ID or name" autoFocus autoComplete="off" />
+            disabled={!live || busy} aria-label="Student ID, script ID or name" autoFocus autoComplete="off" />
           <button className="btn pri" disabled={!live || busy}>{q.trim() && shown.length === 1 ? `Check in ${shown[0].full_name.split(' ')[0]}` : 'Check in'}</button>
         </form>
         <h3 style={{ marginTop: 18 }}>Still to hand in <span className="muted small">· {q.trim() ? `${shown.length} of ${waiting.length}` : waiting.length}</span></h3>
         {shown.map((r) => (
           <div key={r.student_id} className="row between" style={{ padding: '7px 0', borderBottom: '1px solid #eef1f4' }}>
-            <span><span className="mono">{r.matric_no}</span> <span className="mono muted">{r.student_code}</span> · {r.full_name}</span>
+            <span><span className="mono">{r.matric_no}</span> · {r.full_name}</span>
             {live && <button className="btn sm" disabled={busy} onClick={() => checkIn(r.matric_no)}>Check in</button>}
           </div>
         ))}

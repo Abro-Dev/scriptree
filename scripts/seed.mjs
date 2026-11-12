@@ -55,11 +55,11 @@ for (const s of STAFF) {
 console.log(`Students (${N_STUDENTS})…`);
 const studentIds = [];
 for (let i = 0; i < N_STUDENTS; i++) {
-  const matric = `BU/21A/CS/${10001 + i}`, code = `ST${210001 + i}`;
+  const matric = `BU/21A/CS/${10001 + i}`, code = matric.toLowerCase().replace(/\//g, '.');   // sign-in address, as admin-users makes it
   const full_name = `${FIRST[i % FIRST.length]} ${LAST[(i * 7) % LAST.length]}`;
   const uid = await ensureUser(`${code.toLowerCase()}@${STUDENT_EMAIL_DOMAIN}`);
   must(await db.from('profiles').upsert({ id: uid, role: 'student', full_name, email: `${code.toLowerCase()}@${STUDENT_EMAIL_DOMAIN}` }), 'student profile');
-  const row = must(await db.from('students').upsert({ user_id: uid, matric_no: matric, student_code: code, full_name, department: 'Computer Science', level: '400L' }, { onConflict: 'matric_no' }).select('id').single(), 'student ' + matric);
+  const row = must(await db.from('students').upsert({ user_id: uid, matric_no: matric, full_name, department: 'Computer Science', level: '400L' }, { onConflict: 'matric_no' }).select('id').single(), 'student ' + matric);
   studentIds.push(row.id);
 }
 
@@ -80,5 +80,5 @@ Done. Password for every demo account: ${PASSWORD}
   Admin        admin@school.edu.ng      (two-factor set-up on first sign-in)
   Exams officer a.okoro@school.edu.ng   (two-factor set-up on first sign-in)
   Invigilator  i.danladi@school.edu.ng  (runs CSC 409 today, 30 registered)
-  Student      BU/21A/CS/10001 or ST210001
+  Student      BU/21A/CS/10001
 `);

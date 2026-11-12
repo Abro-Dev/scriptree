@@ -124,7 +124,7 @@ export function ScanTab({ d, live, reload }: TabProps) {
         <h3>Capture a script</h3>
         <div className="small muted" style={{ marginBottom: 12 }}>Find the student, then either upload the PDF the scanner saved, or take photo snaps of each page — they are merged into one PDF.</div>
         <form className="row" style={{ marginBottom: 10 }} onSubmit={find}>
-          <input className="input" type="search" style={{ flex: 1 }} placeholder="Matric no., student ID, script ID or name" value={lookup} maxLength={40}
+          <input className="input" type="search" style={{ flex: 1 }} placeholder="Student ID, script ID or name" value={lookup} maxLength={40}
             onChange={(e) => setLookup(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') setLookup(''); }}
             disabled={!live} aria-label="Find student" autoComplete="off" />
           <button className="btn" disabled={!live}>Find</button>
@@ -132,7 +132,7 @@ export function ScanTab({ d, live, reload }: TabProps) {
         <select className="input" style={{ width: '100%', marginBottom: 14 }} value={scanFor} disabled={!live || !cands.length}
           onChange={(e) => { setScanFor(e.target.value); reset(); }} aria-label="Student being scanned">
           {cands.map((r) => <option key={r.student_id} value={r.student_id}>
-            {r.matric_no} · {r.student_code} · {r.full_name}{r.n_scans ? ' · already scanned' : r.has_physical ? '' : ' · script not checked in'}
+            {r.matric_no} · {r.full_name}{r.n_scans ? ' · already scanned' : r.has_physical ? '' : ' · script not checked in'}
           </option>)}
           {!cands.length && <option>No present candidates yet — take attendance first</option>}
         </select>
@@ -179,7 +179,7 @@ export function ScanTab({ d, live, reload }: TabProps) {
         <h3>Waiting to be scanned <span className="muted small">· {lookup.trim() ? `${shown.length} of ${waiting.length}` : waiting.length}</span></h3>
         {shown.map((r) => (
           <div key={r.student_id} className="row between" style={{ padding: '7px 0', borderBottom: '1px solid #eef1f4' }}>
-            <span className="small"><span className="mono">{r.matric_no}</span> <span className="mono muted">{r.student_code}</span><br />{r.full_name}</span>
+            <span className="small"><span className="mono">{r.matric_no}</span><br />{r.full_name}</span>
             <span className="row" style={{ gap: 6 }}>
               {!r.has_physical && <span className="pill p-pend">no script yet</span>}
               {live && <button className="btn sm" onClick={() => { setScanFor(r.student_id); reset(); }}>Select</button>}

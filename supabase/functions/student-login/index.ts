@@ -1,5 +1,5 @@
-// student-login — sign a student in by matric number or student ID, with rate limiting.
-// Replaces the anonymous student_login_email() lookup, which revealed which matric numbers exist.
+// student-login — sign a student in by student ID (e.g. BU/24C/IT/10778), with rate limiting.
+// Replaces the anonymous student_login_email() lookup, which revealed which student IDs exist.
 //
 // Limits over 15 minutes, counting failures and attempts still in flight (login_attempt_begin, atomic):
 //   5 per identifier from one IP · 20 per identifier from all IPs · 30 per IP.
@@ -18,7 +18,7 @@ const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 
 const WINDOW_MIN = 15;
-const GENERIC = 'Wrong matric number / student ID or password.';
+const GENERIC = 'Wrong student ID or password.';
 const BUSY = 'Sign-in is busy right now. Wait a few seconds and try again.';
 
 /** Client address as seen by the platform's proxy (first hop of x-forwarded-for, unless a proxy header is set). */
@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
   try { body = await req.json(); } catch { return json(400, { error: 'Bad request' }); }
   const identifier = String(body.identifier ?? '').trim().toUpperCase();
   const password = String(body.password ?? '');
-  if (!/^([A-Z]{2,5}\/[0-9]{2}[A-D]\/[A-Z]{2,5}\/[0-9]{3,6}|ST[0-9]{4,10})$/.test(identifier) || password.length < 8 || password.length > 128) {
+  if (!/^([A-Z]{2,5}\/[0-9]{2}[A-D]\/[A-Z]{2,5}\/[0-9]{3,6})$/.test(identifier) || password.length < 8 || password.length > 128) {
     return json(400, { error: GENERIC });
   }
   const ip = clientIp(req);

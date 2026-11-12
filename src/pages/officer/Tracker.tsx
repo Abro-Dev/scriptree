@@ -12,7 +12,7 @@ interface ScanFile { id: string; file_no: number; version: number; active: boole
 interface ScriptRec {
   id: string; script_code: string; status: string; location: string; session_id: string;
   exam_sessions: { course_code: string; course_title: string; exam_date: string; venue: string };
-  students: { full_name: string; matric_no: string; student_code: string };
+  students: { full_name: string; matric_no: string };
   custody_events: { action: string; location: string; actor_name: string; at: string }[];
 }
 interface Trace { scripts: ScriptRec[]; files: ScanFile[]; integrity: Record<string, boolean | null>; registered: Set<string>; orphanFiles: ScanFile[] }
@@ -24,7 +24,7 @@ async function trace(q: string, session: string | null): Promise<Trace | null> {
   const id = must(await supabase.rpc('resolve_identifier', { p_q: q, p_session: session })) as string | null;
   if (!id) return null;
   let sq = supabase.from('scripts')
-    .select('id, script_code, status, location, session_id, exam_sessions(course_code, course_title, exam_date, venue), students(full_name, matric_no, student_code), custody_events(action, location, actor_name, at)')
+    .select('id, script_code, status, location, session_id, exam_sessions(course_code, course_title, exam_date, venue), students(full_name, matric_no), custody_events(action, location, actor_name, at)')
     .eq('student_id', id).order('created_at', { ascending: false }).order('at', { referencedTable: 'custody_events' });
   let fq = supabase.from('files').select('id, file_no, version, active, uploaded_at, uploaded_by_name, size_bytes, sha256, session_id, storage_path')
     .eq('kind', 'script').eq('student_id', id).order('version');
@@ -63,8 +63,8 @@ export function Tracker() {
       <div className="content">
         <div className="card" style={{ marginBottom: 16 }}>
           <form className="row" onSubmit={go}>
-            <input className="input" style={{ flex: 1, minWidth: 240 }} placeholder="Matric number, student ID or script ID" value={input} maxLength={40}
-              onChange={(e) => setInput(e.target.value)} aria-label="Matric number, student ID or script ID" autoFocus />
+            <input className="input" style={{ flex: 1, minWidth: 240 }} placeholder="Student ID or script ID" value={input} maxLength={40}
+              onChange={(e) => setInput(e.target.value)} aria-label="Student ID or script ID" autoFocus />
             <button className="btn pri">Trace</button>
           </form>
           {session && <div className="legend" style={{ marginTop: 8 }}>Showing one session only · <a href="#" onClick={(e) => { e.preventDefault(); setParams({ q }); }}>show all sessions</a></div>}
@@ -125,7 +125,7 @@ function ScriptCard({ sc, t, officer, onChange }: { sc: ScriptRec; t: Trace; off
             <div>
               <div className="mono muted">{sc.script_code}</div>
               <h3 style={{ margin: '2px 0 4px', fontSize: 17 }}>{st.full_name} · {st.matric_no}</h3>
-              <div className="small muted mono">Student ID {st.student_code}</div>
+              <div className="small muted mono">Student ID {st.matric_no}</div>
               <div className="small muted">{s.course_code} {s.course_title} · {s.exam_date} · {s.venue}</div>
             </div>
             <div style={{ textAlign: 'right' }}><span className="pill p-live">{STATUS_LABEL[sc.status] ?? sc.status}</span><div className="small muted" style={{ marginTop: 4 }}>{sc.location}</div></div>
