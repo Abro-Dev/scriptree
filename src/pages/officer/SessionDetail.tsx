@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { PageTop } from '../../components/Shell';
-import { Pill, useToast } from '../../components/ui';
+import { Modal, Pill, useToast } from '../../components/ui';
 import { FixModal } from './FixModal';
 import { supabase, errText } from '../../lib/supabase';
 import { must, useLoad } from '../../lib/useLoad';
@@ -21,6 +21,7 @@ export function SessionDetail() {
   const [resolving, setResolving] = useState<ReconRow | null>(null);
   const [importing, setImporting] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   const { data, error, reload } = useLoad(async () => {
     const [s, c, r] = await Promise.all([
@@ -51,6 +52,26 @@ export function SessionDetail() {
     reload();
   }
 
+  async function reopen() {
+    const why = prompt(`Reopen ${s.course_code} in ${s.venue}?\nAttendance, check-in and scanning unlock until it is closed again. Say why (it goes in the audit log):`);
+    if (why == null) return;
+    if (why.trim().length < 5) { toast('Give a reason (at least 5 characters)'); return; }
+    const { error } = await supabase.rpc('reopen_session', { p_session: s.id, p_note: why.trim().slice(0, 300) });
+    if (error) { toast(errText(error)); return; }
+    toast(`${s.course_code} is live again`);
+    reload(); window.dispatchEvent(new Event('alerts-changed'));
+  }
+
+  async function cancel() {
+    const why = prompt(`Cancel ${s.course_code} on ${s.exam_date} in ${s.venue}?\nThe session and its ${c.registered} registrations are removed. Say why (it goes in the audit log):`);
+    if (why == null) return;
+    if (why.trim().length < 5) { toast('Give a reason (at least 5 characters)'); return; }
+    const { error } = await supabase.rpc('delete_exam_session', { p_session: s.id, p_reason: why.trim().slice(0, 300) });
+    if (error) { toast(errText(error)); return; }
+    toast(`${s.course_code} cancelled`);
+    nav('/sessions');
+  }
+
   const gap = (v: number, ref: number) => v < ref ? <div className="gap" style={{ color: 'var(--crit)' }}>−{ref - v} vs present</div>
     : v > ref ? <div className="gap" style={{ color: 'var(--high)' }}>+{v - ref} over</div>
     : <div className="gap" style={{ color: 'var(--ok)' }}>✓ matches</div>;
@@ -64,6 +85,10 @@ export function SessionDetail() {
         sub={`${s.exam_date} · ${s.start_time.slice(0, 5)} · ${s.venue} · Invigilator: ${s.invig?.full_name ?? '—'}`}
         actions={<>
           <button className="btn" onClick={() => nav('/sessions')}>Back to sessions</button>
+          {s.status === 'scheduled' && <button className="btn danger" onClick={cancel}>Cancel session</button>}
+          {s.status === 'closed' && <button className="btn" onClick={reopen}>Reopen</button>}
+          {s.status !== 'closed' && <button className="btn" onClick={() => setEditing(true)}>Edit</button>}
+          {s.status !== 'closed' && <button className="btn" title="Run attendance, check-in and scanning yourself, e.g. when the invigilator is away" onClick={() => nav(`/hall/${s.id}`)}>Exam hall</button>}
           {s.status !== 'closed' && <button className="btn" onClick={() => setImporting(true)}>Import candidates</button>}
           <button className="btn pri" disabled={busy} onClick={runRecon}>Run reconciliation</button>
         </>} />
@@ -116,8 +141,62 @@ export function SessionDetail() {
         </div>
       </div>
       {resolving && <FixModal sid={s.id} code={s.course_code} live={live} row={resolving} onClose={() => setResolving(null)} onDone={() => { setResolving(null); reload(); window.dispatchEvent(new Event('alerts-changed')); }} />}
+      {editing && <EditSessionModal s={s} onClose={() => setEditing(false)} onDone={() => { setEditing(false); reload(); }} />}
       {importing && <ImportModal sessions={[summary]} initial={s.id} onClose={() => { setImporting(false); reload(); }} />}
     </>
   );
 }
 
+
+/** Change a session that hasn't closed. Once it is live only the title, venue and invigilator can change. */
+function EditSessionModal({ s, onClose, onDone }: { s: Detail; onClose: () => void; onDone: () => void }) {
+  const toast = useToast();
+  const { data: invigs } = useLoad(async () => must(await supabase.from('profiles').select('id, full_name').eq('role', 'invigilator').eq('status', 'active').order('full_name')) as { id: string; full_name: string }[], []);
+  const [f, setF] = useState({ title: s.course_title, date: s.exam_date, time: s.start_time.slice(0, 5), venue: s.venue, invig: s.invigilator_id ?? '' });
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
+  const isLive = s.status === 'live';
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (f.title.trim().length < 3) return setErr('Enter the course title.');
+    if (!f.date) return setErr('Choose the exam date.');
+    if (!/^\d{2}:\d{2}$/.test(f.time)) return setErr('Enter the start time.');
+    if (f.venue.trim().length < 2) return setErr('Enter the venue.');
+    if (!f.invig) return setErr('Choose an invigilator.');
+    setBusy(true); setErr('');
+    const { error } = await supabase.rpc('update_exam_session', {
+      p_session: s.id, p_course_title: f.title.trim(), p_date: f.date, p_time: f.time, p_venue: f.venue.trim(), p_invigilator: f.invig,
+    });
+    setBusy(false);
+    if (error) return setErr(errText(error));
+    toast('Session updated');
+    onDone();
+  }
+
+  return (
+    <Modal onClose={onClose}>
+      <h3>Edit {s.course_code}</h3>
+      <p className="muted small">{isLive ? 'The session is open, so the date and time are fixed. You can still change the venue or hand it to another invigilator.' : 'Change the details or hand the session to another invigilator. Every change is written to the audit log.'}</p>
+      <form onSubmit={submit} noValidate>
+        <div className="grid g2" style={{ margin: '14px 0' }}>
+          <input className="input" style={{ gridColumn: '1 / -1' }} placeholder="Course title" value={f.title} onChange={set('title')} maxLength={200} aria-label="Course title" />
+          <input className="input" type="date" value={f.date} onChange={set('date')} disabled={isLive} aria-label="Exam date" />
+          <input className="input" type="time" value={f.time} onChange={set('time')} disabled={isLive} aria-label="Start time" />
+          <input className="input" placeholder="Venue" value={f.venue} onChange={set('venue')} maxLength={120} aria-label="Venue" />
+          <select className="input" value={f.invig} onChange={set('invig')} aria-label="Invigilator">
+            <option value="">Invigilator…</option>
+            {s.invigilator_id && !(invigs ?? []).some((i) => i.id === s.invigilator_id) && <option value={s.invigilator_id}>{s.invig?.full_name ?? 'Current invigilator'} (not active)</option>}
+            {(invigs ?? []).map((i) => <option key={i.id} value={i.id}>{i.full_name}</option>)}
+          </select>
+        </div>
+        <div className="err" role="alert">{err}</div>
+        <div className="row" style={{ justifyContent: 'flex-end' }}>
+          <button type="button" className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn pri" disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}

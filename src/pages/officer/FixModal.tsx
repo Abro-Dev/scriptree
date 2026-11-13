@@ -117,10 +117,11 @@ export function FixModal({ sid, code, live, row: initial, onClose, onDone }: {
         const path = `incoming/${auth.user.id}/${crypto.randomUUID()}.pdf`;
         const up = await supabase.storage.from('scans').upload(path, new Blob([bytes as BlobPart], { type: 'application/pdf' }), { contentType: 'application/pdf' });
         if (up.error) throw up.error;
-        await invokeFn('register-file', {
+        const saved = await invokeFn<{ same_as?: string | null }>('register-file', {
           kind: 'script', path, name: `${code.replace(' ', '')}_${row.matric_no.replace(/\//g, '-')}.pdf`,
           session_id: sid, student_id: row.student_id, method, pages, rescan,
         });
+        if (saved.same_as) alert(`Saved, but this is the very same file already archived for ${saved.same_as}. One of them is the wrong file — check both.`);
       });
     },
   };

@@ -15,6 +15,11 @@ const READ_RPCS = new Set([
   'current_alerts', 'session_summaries', 'dashboard_stats', 'session_counts', 'reconcile_session', 'verify_audit_chain',
   'notification_status', 'my_exams', 'my_documents', 'upload_limit_mb', 'resolve_identifier',
 ]);
+/**
+ * Hall writes that set a value rather than add one: sending them twice leaves the same record (at worst a
+ * second audit line). Safe to retry when a weak hall connection drops the request or the reply.
+ */
+const IDEMPOTENT_RPCS = new Set(['mark_attendance', 'mark_all_present', 'set_headcount', 'set_attendance_mode']);
 const MAX_RETRIES = 3;
 
 function isWrite(url: string, method: string) {
@@ -40,13 +45,15 @@ const wait = (ms: number, signal?: AbortSignal | null) => new Promise<void>((don
 /**
  * fetch with retries for transient failures, and cache invalidation on writes.
  *  - 429 / 503 from the database API or storage: the request was refused before it ran, so any method is safe to retry.
- *  - 502 / 504 / network errors: retried only for GET/HEAD, since a write might already have landed.
+ *  - 502 / 504 / network errors: retried for reads and for the few hall writes that are safe to repeat
+ *    (IDEMPOTENT_RPCS); any other write might already have landed.
  *  - Edge functions and auth are never retried on 429: there it means a real rate limit (e.g. sign-in lockout).
  */
 async function resilientFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
   const method = (init?.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase();
-  const readOnly = method === 'GET' || method === 'HEAD';
+  const rpcName = /\/rest\/v1\/rpc\/(\w+)/.exec(url)?.[1];
+  const readOnly = method === 'GET' || method === 'HEAD' || (rpcName !== undefined && (READ_RPCS.has(rpcName) || IDEMPOTENT_RPCS.has(rpcName)));
   const refusedIsRetryable = /\/(rest|storage)\/v1\//.test(url);
   const write = isWrite(url, method);
   if (write) invalidateCache();

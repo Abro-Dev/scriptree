@@ -33,6 +33,7 @@ export function ScanTab({ d, live, reload }: TabProps) {
   const [rescan, setRescan] = useState(false);
   const [saving, setSaving] = useState(false);
   const [over, setOver] = useState(false);
+  const [sameFile, setSameFile] = useState('');
 
   // keep a valid selection as rows refresh
   useEffect(() => {
@@ -96,12 +97,13 @@ export function ScanTab({ d, live, reload }: TabProps) {
     try {
       const up = await supabase.storage.from('scans').upload(path, new Blob([staged.bytes as BlobPart], { type: 'application/pdf' }), { contentType: 'application/pdf' });
       if (up.error) throw up.error;
-      const r = await invokeFn<{ file_no: number; version: number; duplicate: boolean; sha256: string }>('register-file', {
+      const r = await invokeFn<{ file_no: number; version: number; duplicate: boolean; sha256: string; same_as?: string | null }>('register-file', {
         kind: 'script', path, name: staged.name, session_id: s.id, student_id: staged.studentId, method: staged.method, pages: staged.pages ?? null, rescan,
       });
       const id = 'F' + String(r.file_no).padStart(4, '0');
       if (r.sha256 !== staged.hash) toast(`Saved ${id}, but the server fingerprint differs from this browser's — rescan this script`);
       else toast(r.duplicate ? `Saved ${id} — flagged as a duplicate scan` : `Saved ${id} v${r.version} · fingerprint confirmed by server`);
+      setSameFile(r.same_as ? `${id} for ${row?.matric_no ?? 'this student'} is the very same file already saved for ${r.same_as}. One of them is the wrong file — check both and rescan the wrong one.` : '');
       reset();
       const next = cands.find((x) => x.n_scans === 0 && x.student_id !== row?.student_id);
       if (next) setScanFor(next.student_id);
@@ -136,6 +138,9 @@ export function ScanTab({ d, live, reload }: TabProps) {
           </option>)}
           {!cands.length && <option>No present candidates yet — take attendance first</option>}
         </select>
+        {sameFile && <div className="banner crit" role="alert" style={{ marginBottom: 12 }}>
+          <b>Same file saved twice.</b> {sameFile} <button className="btn sm" style={{ marginLeft: 8 }} onClick={() => setSameFile('')}>OK</button>
+        </div>}
         {!allowed.length && <div className="banner warn">Both capture methods are turned off in system settings.</div>}
         {allowed.length > 0 && <div className="seg" style={{ marginBottom: 12 }}>
           {allowed.includes('pdf') && <button className={cap === 'pdf' ? 'on' : ''} onClick={() => { setCap('pdf'); reset(); }}>Upload PDF from scanner</button>}

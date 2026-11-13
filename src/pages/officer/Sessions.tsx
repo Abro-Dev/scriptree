@@ -61,7 +61,7 @@ function NewSessionModal({ onClose, onCreated }: { onClose: () => void; onCreate
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    const code = f.code.trim().toUpperCase().replace(/\s+/g, ' ');
+    const code = f.code.trim().toUpperCase().replace(/\s+/g, ' ').replace(/^([A-Z]{2,5})([0-9]{3})$/, '$1 $2');
     if (!/^[A-Z]{2,5} [0-9]{3}$/.test(code)) return setErr('Course code looks like “CSC 411”.');
     if (f.title.trim().length < 3) return setErr('Enter the course title.');
     if (!f.date) return setErr('Choose the exam date.');
@@ -74,7 +74,7 @@ function NewSessionModal({ onClose, onCreated }: { onClose: () => void; onCreate
       p_invigilator: f.invig, p_att_mode: f.mode || settings?.default_att_mode || 'start',
     });
     setBusy(false);
-    if (error) return setErr(error.message.includes('duplicate') ? `${code} already has a session on ${f.date}.` : errText(error));
+    if (error) return setErr(errText(error).replace(' (duplicate)', '. Choose another time or venue.'));
     toast(`${code} created — import candidates next`);
     onCreated(data as string);
   }
@@ -82,14 +82,14 @@ function NewSessionModal({ onClose, onCreated }: { onClose: () => void; onCreate
   return (
     <Modal onClose={onClose}>
       <h3>New exam session</h3>
-      <p className="muted small">Creates the session. Import the registered candidates next. Each script gets its ID (student ID + course code) when it's handed in.</p>
+      <p className="muted small">Creates the session. A course split across several halls or sittings gets one session per hall. Import the registered candidates next. Each script gets its ID (student ID + course code) when it's handed in.</p>
       <form onSubmit={submit} noValidate>
         <div className="grid g2" style={{ margin: '14px 0' }}>
           <input className="input" placeholder="Course code e.g. CSC 411" value={f.code} onChange={set('code')} maxLength={10} aria-label="Course code" />
           <input className="input" placeholder="Course title" value={f.title} onChange={set('title')} maxLength={120} aria-label="Course title" />
           <input className="input" type="date" value={f.date} onChange={set('date')} aria-label="Exam date" />
           <input className="input" type="time" value={f.time} onChange={set('time')} aria-label="Start time" />
-          <input className="input" placeholder="Venue" value={f.venue} onChange={set('venue')} maxLength={60} aria-label="Venue" />
+          <input className="input" placeholder="Venue" value={f.venue} onChange={set('venue')} maxLength={120} aria-label="Venue" />
           <select className="input" value={f.invig} onChange={set('invig')} aria-label="Invigilator">
             <option value="">Invigilator…</option>
             {(invigs ?? []).map((i) => <option key={i.id} value={i.id}>{i.full_name}</option>)}
@@ -155,7 +155,7 @@ export function ImportModal({ sessions, initial, onClose }: { sessions: SessionS
       </p>
       <button type="button" className="btn sm" style={{ marginBottom: 4 }} onClick={() => downloadCandidateTemplate(s?.course_code)}>⬇ Download template</button>
       <select className="input" style={{ width: '100%', margin: '10px 0' }} value={sid} onChange={(e) => { setSid(e.target.value); setResult(null); }} aria-label="Session">
-        {sessions.map((x) => <option key={x.id} value={x.id}>{x.course_code} · {x.course_title} · {x.exam_date}</option>)}
+        {sessions.map((x) => <option key={x.id} value={x.id}>{x.course_code} · {x.course_title} · {x.exam_date} · {x.venue}</option>)}
       </select>
       {!result && <label className="drop" style={{ margin: '4px 0 10px' }}>
         <input type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={(e) => { pick(e.target.files?.[0]); e.target.value = ''; }} />

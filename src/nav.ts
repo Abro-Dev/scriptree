@@ -46,6 +46,6 @@ export const HOME: Record<Role, string> = {
 export const ROUTE_ROLES: Record<string, Role[]> = {
   '/overview': ['admin'], '/users': ['admin'], '/settings': ['admin'], '/audit': ['admin', 'officer'],
   '/dashboard': ['officer'], '/alerts': ['officer'], '/sessions': ['officer'], '/sessions/:id': ['officer'], '/archive': ['officer'], '/documents': ['officer'],
-  '/tracker': ['officer', 'invigilator'], '/hall': ['invigilator'], '/hall/:id': ['invigilator'],
+  '/tracker': ['officer', 'invigilator'], '/hall': ['invigilator'], '/hall/:id': ['invigilator', 'officer'],
   '/my/exams': ['student'], '/my/documents': ['student'],
 };

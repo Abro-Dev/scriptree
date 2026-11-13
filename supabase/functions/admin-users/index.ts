@@ -133,7 +133,10 @@ Deno.serve(async (req) => {
         slips.push({ ...s, password, new_account: false });
       } else {
         // sign-in address only (never mailed): BU/24C/IT/10778 -> bu.24c.it.10778@students.scriptree.local
-        const email = `${s.matric_no.toLowerCase().replace(/\//g, '.')}@${STUDENT_EMAIL_DOMAIN}`;
+        // The random part means the address can't be worked out from the student ID, so passwords can only be
+        // tried through the rate-limited student-login function, never by posting to the auth server directly.
+        const rand = Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => b.toString(16).padStart(2, '0')).join('');
+        const email = `${s.matric_no.toLowerCase().replace(/\//g, '.')}.${rand}@${STUDENT_EMAIL_DOMAIN}`;
         const { data: cu, error: e } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
         if (e) { failed.push({ matric_no: s.matric_no, reason: e.message }); return; }
         const { error: pe } = await admin.from('profiles').insert({ id: cu.user.id, role: 'student', full_name: s.full_name, email, must_change_password: true });

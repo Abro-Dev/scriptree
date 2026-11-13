@@ -3,7 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase, errText, invokeFn, urlAuthType } from './supabase';
 import { MFA_ROLES, type Profile, type Role, type Student } from './types';
 import { invalidateCache } from './cache';
-import { IDLE_MS, clearActivity, flagIdleSignOut, idleFor } from './idle';
+import { clearActivity, flagIdleSignOut, idleFor, idleLimit } from './idle';
 
 /**
  * Sign-in states:
@@ -82,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(async ({ data }) => {
       // A stored session left idle past the limit (browser closed, laptop asleep) doesn't come back.
       // An invite/reset link is a fresh sign-in, so it's exempt.
-      if (data.session && !linkPending && idleFor() >= IDLE_MS) {
+      if (data.session && !linkPending && idleFor() >= idleLimit()) {
         flagIdleSignOut();
         await supabase.auth.signOut({ scope: 'local' });
         reset();

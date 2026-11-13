@@ -8,7 +8,7 @@ export interface MyExam {
 
 export interface MyDoc {
   doc_id: string; doc_type: string; status: 'pending' | 'verified' | 'rejected'; reason: string | null; uploaded_at: string;
-  file_no: number; sha256: string; size_bytes: number; original_name: string; verified_by_name: string | null; verified_at: string | null;
+  file_no: number; sha256: string; size_bytes: number; original_name: string; verified_by_name: string | null; verified_at: string | null; storage_path: string;
 }
 
 /** What a student sees for a record. Internal outcome names (e.g. integrity failure) stay with the exams office. */

@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { PageTop } from '../../components/Shell';
 import { Modal, useToast } from '../../components/ui';
 import { supabase, errText } from '../../lib/supabase';
+import { useAuth } from '../../lib/auth';
+import { setHallOpen } from '../../lib/idle';
 import { fmtDate, useHall, type HallData } from '../../lib/hall';
 import { AttendanceTab } from './AttendanceTab';
 import { CheckInTab } from './CheckInTab';
@@ -41,11 +43,28 @@ export function Hall() {
   const [busy, setBusy] = useState(false);
   const toast = useToast();
   const nav = useNavigate();
+  const { profile } = useAuth();
+  const officer = profile?.role === 'officer';
+  const home = officer ? (id ? `/sessions/${id}` : '/sessions') : '/hall';
+  const homeLabel = officer ? 'Back to session' : 'My sessions';
 
-  if (error) return <><PageTop title="Exam hall" /><div className="content"><div className="banner crit">{error}</div><p><Link to="/hall">Back to my sessions</Link></p></div></>;
+  // the hall device sits untouched while the paper is written: use the long inactivity limit while it's live
+  const isLive = d?.session.status === 'live';
+  useEffect(() => { setHallOpen(isLive); return () => setHallOpen(false); }, [isLive]);
+
+  if (error) return <><PageTop title="Exam hall" /><div className="content"><div className="banner crit">{error}</div><p><Link to={home}>{homeLabel}</Link></p></div></>;
   if (!d) return <><PageTop title="Exam hall" /><div className="content muted">Loading…</div></>;
 
   const s = d.session, live = s.status === 'live';
+
+  async function openSession() {
+    setBusy(true);
+    const { error } = await supabase.rpc('start_session', { p_session: s.id });
+    setBusy(false);
+    if (error) { toast(errText(error)); return; }
+    toast(`${s.course_code} is live`);
+    reload();
+  }
 
   async function close() {
     setBusy(true);
@@ -61,12 +80,13 @@ export function Hall() {
     <>
       <PageTop title="Exam hall" sub={`${s.course_code} ${s.course_title} · ${s.venue} · ${fmtDate(s.exam_date)}`}
         actions={<>
-          <button className="btn" onClick={() => nav('/hall')}>My sessions</button>
+          <button className="btn" onClick={() => nav(home)}>{homeLabel}</button>
           {live ? <button className="btn pri" onClick={() => setClosing(true)}>Close session &amp; reconcile</button>
-            : s.status === 'closed' ? <span className="pill p-ok">Session closed</span> : <span className="pill p-pend">Not opened yet</span>}
+            : s.status === 'closed' ? <span className="pill p-ok">Session closed</span>
+            : <button className="btn pri" disabled={busy} onClick={() => confirm(`Open ${s.course_code} in ${s.venue} now? Attendance, check-in and scanning start.`) && openSession()}>{busy ? 'Opening…' : 'Open session'}</button>}
         </>} />
       <div className="content">
-        {s.status === 'scheduled' && <div className="banner info" style={{ marginBottom: 16 }}>This session hasn't been opened. Open it from <Link to="/hall">My sessions</Link> to start taking attendance.</div>}
+        {s.status === 'scheduled' && <div className="banner info" style={{ marginBottom: 16 }}>This session hasn't been opened. Choose <b>Open session</b> to start taking attendance.</div>}
         <CountStrip d={d} live={live} />
         <div className="tabs" role="tablist">
           {TABS.map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}

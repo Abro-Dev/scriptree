@@ -34,6 +34,14 @@ export function Documents() {
     if (error) toast(errText(error)); else toast('Document verified');
     reload(); window.dispatchEvent(new Event('alerts-changed'));
   }
+  async function withdraw(d: DocRow) {
+    const why = prompt(`Withdraw the verification of ${d.doc_types.name} for ${d.students.full_name}?\nThe student sees this reason and is asked to upload again.`);
+    if (why == null) return;
+    if (why.trim().length < 5) { toast('Give a reason (at least 5 characters)'); return; }
+    const { error } = await supabase.rpc('revoke_document_verification', { p_doc: d.id, p_reason: why.trim().slice(0, 180) });
+    toast(error ? errText(error) : 'Verification withdrawn — the student can upload again');
+    reload(); window.dispatchEvent(new Event('alerts-changed'));
+  }
   async function open(d: DocRow) {
     const { data: u, error } = await supabase.storage.from('documents').createSignedUrl(d.files.storage_path, 120);
     if (error) toast(errText(error)); else window.open(u.signedUrl, '_blank', 'noopener');
@@ -71,6 +79,7 @@ export function Documents() {
                     {d.reason && <div className="small muted">{d.reason}</div>}</td>
                   <td className="num" style={{ whiteSpace: 'nowrap' }}>
                     <button className="btn sm" onClick={() => open(d)}>Open</button>{' '}
+                    {d.status === 'verified' && <button className="btn sm danger" title="Verified by mistake? This sends it back to the student with a reason." onClick={() => withdraw(d)}>Withdraw</button>}
                     {d.status === 'pending' && <><button className="btn sm" onClick={() => verify(d)}>Verify</button> <button className="btn sm danger" onClick={() => setRejecting(d)}>Reject</button></>}
                   </td>
                 </tr>

@@ -12,6 +12,16 @@ export function AttendanceTab({ d, live, reload }: TabProps) {
   useEffect(() => { setHc(d.counts.headcount?.toString() ?? ''); }, [d.counts.headcount]);
 
   const regs = d.rows.filter((r) => r.is_registered);
+  const unmarked = regs.filter((r) => r.present == null).length;
+
+  async function markAll() {
+    if (!confirm(`Mark the ${unmarked} candidate${unmarked === 1 ? '' : 's'} not yet ticked as present? Then untick anyone who is absent.`)) return;
+    setSaving('all');
+    const { data, error } = await supabase.rpc('mark_all_present', { p_session: s.id });
+    setSaving(null);
+    toast(error ? errText(error) : `${data} marked present — untick anyone absent`);
+    await reload();
+  }
 
   async function call(fn: string, args: Record<string, unknown>, key: string) {
     setSaving(key);
@@ -51,6 +61,10 @@ export function AttendanceTab({ d, live, reload }: TabProps) {
           ? <><b>At script submission:</b> a student is ticked present automatically when their script is checked in (tab 2). You can still tick manually here, e.g. if a student hands in a blank booklet.</>
           : <><b>{ATT_MODES[mode]}:</b> tick each student present from the paper sheet{mode === 'start' ? ' once everyone is seated' : ' as they leave the hall'}. The headcount is kept as a cross-check.</>}
       </div>
+      {live && unmarked > 0 && <div className="row between" style={{ marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+        <span className="small muted">{unmarked} of {regs.length} not ticked yet.</span>
+        <button className="btn sm" disabled={saving !== null} onClick={markAll}>{saving === 'all' ? 'Marking…' : `Mark all ${unmarked} present`}</button>
+      </div>}
       <div className="table-scroll">
         <table>
           <thead><tr><th>#</th><th>Student ID</th><th>Candidate</th><th>Present</th><th>Ticked</th><th>Script ID</th></tr></thead>

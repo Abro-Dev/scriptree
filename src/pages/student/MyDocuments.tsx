@@ -34,6 +34,11 @@ export function MyDocuments() {
     return { docs, types, maxMb: settings };
   }, []);
 
+  async function view(d: MyDoc) {
+    const { data: u, error } = await supabase.storage.from('documents').createSignedUrl(d.storage_path, 120);
+    if (error) toast(errText(error)); else window.open(u.signedUrl, '_blank', 'noopener');
+  }
+
   async function stage(file?: File) {
     if (!file || !pd) return;
     const maxMb = data?.maxMb ?? 20;
@@ -84,7 +89,8 @@ export function MyDocuments() {
                         : d.status === 'verified' ? <Pill sev="ok">Verified</Pill> : d.status === 'pending' ? <Pill sev="pend">Awaiting verification</Pill> : <Pill sev="crit">Rejected</Pill>}</td>
                       <td className="small muted">{d ? fmtStamp(d.uploaded_at) : '—'}</td>
                       <td>{d && <span className="hash" title={d.sha256}>{shortHash(d.sha256)}</span>}</td>
-                      <td className="num">
+                      <td className="num" style={{ whiteSpace: 'nowrap' }}>
+                        {d && <><button className="btn sm" onClick={() => view(d)}>View</button>{' '}</>}
                         {(!d || d.status === 'rejected') && <button className="btn sm pri" onClick={() => setPd({ type: t })}>{d ? 'Re-upload' : 'Upload'}</button>}
                         {d?.status === 'verified' && <button className="btn sm" onClick={() => setReceipt({ d, t })}>View receipt</button>}
                       </td>

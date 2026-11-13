@@ -40,8 +40,10 @@ function printSlips(slips: Slip[]) {
     <div class="grid">${slips.map((x) => `<div class="slip"><b>${esc(x.full_name)}</b><div class="s">Student ID ${esc(x.matric_no)}</div>
     <div class="s" style="margin-top:8px">One-time password</div><div class="pw">${esc(x.password)}</div>
     <div class="s">Sign in at ${origin} → Student, with your student ID. You'll choose your own password straight away.</div></div>`).join('')}
-    </div><script>window.onload=()=>window.print()</script></body></html>`);
+    </div></body></html>`);
   w.document.close();
+  w.focus();
+  setTimeout(() => w.print(), 300);
   return true;
 }
 
@@ -64,6 +66,18 @@ export function Users() {
   const [busy, setBusy] = useState<string | null>(null);
   const [lookup, setLookup] = useState('');
   const [studentModal, setStudentModal] = useState<'add' | 'import' | null>(null);
+  const [editId, setEditId] = useState('');
+  const [editing, setEditing] = useState<EditableStudent | null>(null);
+
+  async function findToEdit(e: FormEvent) {
+    e.preventDefault();
+    const v = editId.trim().toUpperCase();
+    if (!v) return;
+    const { data: st, error } = await supabase.from('students').select('id, matric_no, full_name, email, department, level').eq('matric_no', v).maybeSingle<EditableStudent>();
+    if (error) { toast(errText(error)); return; }
+    if (!st) { toast('No student with that student ID'); return; }
+    setEditing(st);
+  }
   const { data, error, reload } = useLoad(() => invokeFn<ListResult>('admin-users', { action: 'list' }), []);
 
   async function act(key: string, fn: () => Promise<unknown>, ok: string) {
@@ -173,6 +187,14 @@ export function Users() {
               <button className="btn" disabled={busy !== null}>Issue new password</button>
             </form>
           </div>
+          <div className="card">
+            <h3>Correct a student's record</h3>
+            <div className="small muted" style={{ marginBottom: 10 }}>Fix a name, email, department or level (for example at the start of a new session). The student ID itself never changes.</div>
+            <form className="row" onSubmit={findToEdit}>
+              <input className="input" style={{ flex: 1 }} placeholder="Student ID, e.g. BU/24C/IT/10778" maxLength={40} value={editId} onChange={(e) => setEditId(e.target.value)} aria-label="Student ID to edit" />
+              <button className="btn">Find</button>
+            </form>
+          </div>
         </div>
 
         <div className="card" style={{ overflowX: 'auto' }}>
@@ -185,6 +207,7 @@ export function Users() {
         </div>
       </div>
 
+      {editing && <EditStudentModal st={editing} onClose={() => setEditing(null)} onDone={() => { setEditing(null); setEditId(''); toast('Student record updated'); }} />}
       {adding && <AddStaffModal onClose={() => setAdding(false)} onDone={() => { setAdding(false); reload(); }} />}
       {studentModal === 'add' && <AddStudentModal onClose={() => setStudentModal(null)}
         onDone={(id) => { setStudentModal(null); if (id) issue([id]); else { toast('Student added'); reload(); } }} />}
@@ -222,6 +245,45 @@ export function Users() {
         </div>
       </Modal>}
     </>
+  );
+}
+
+interface EditableStudent { id: string; matric_no: string; full_name: string; email: string | null; department: string; level: string }
+
+function EditStudentModal({ st, onClose, onDone }: { st: EditableStudent; onClose: () => void; onDone: () => void }) {
+  const [f, setF] = useState({ name: st.full_name, email: st.email ?? '', dept: st.department, level: st.level });
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (f.name.trim().length < 2) return setErr('Enter the full name.');
+    if (f.email.trim() && !isEmail(f.email)) return setErr('That email address isn’t valid.');
+    if (!f.dept.trim()) return setErr('Enter the department.');
+    if (!f.level.trim()) return setErr('Enter the level.');
+    setBusy(true); setErr('');
+    const { error } = await supabase.rpc('update_student', { p_student: st.id, p_full_name: f.name, p_email: f.email, p_department: f.dept, p_level: f.level });
+    setBusy(false);
+    if (error) return setErr(errText(error));
+    onDone();
+  }
+  return (
+    <Modal onClose={onClose}>
+      <h3>Edit student</h3>
+      <p className="small muted"><span className="mono">{st.matric_no}</span> · changes are written to the audit log.</p>
+      <form onSubmit={submit} noValidate>
+        <div className="grid g2" style={{ margin: '14px 0' }}>
+          <input className="input" placeholder="Full name" maxLength={120} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} aria-label="Full name" autoFocus />
+          <input className="input" type="email" placeholder="Email" maxLength={120} value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} aria-label="Email" />
+          <input className="input" placeholder="Department" maxLength={80} value={f.dept} onChange={(e) => setF({ ...f, dept: e.target.value })} aria-label="Department" />
+          <input className="input" placeholder="Level, e.g. 300L" maxLength={20} value={f.level} onChange={(e) => setF({ ...f, level: e.target.value })} aria-label="Level" />
+        </div>
+        <div className="err" role="alert">{err}</div>
+        <div className="row" style={{ justifyContent: 'flex-end' }}>
+          <button type="button" className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn pri" disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 

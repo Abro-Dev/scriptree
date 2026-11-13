@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../lib/auth';
-import { IDLE_MS, WARN_MS, idleFor, markActive } from '../lib/idle';
+import { WARN_MS, idleFor, idleLimit, markActive } from '../lib/idle';
 import { Modal } from './ui';
 
 const ACTIVITY = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart', 'scroll'] as const;
 
 /**
- * Signs the user out after 15 minutes with no keyboard, mouse, touch or scroll activity in any tab,
- * with a one-minute warning first. Active from sign-in onward, including the password and two-factor steps.
+ * Signs the user out after 15 minutes with no keyboard, mouse, touch or scroll activity in any tab
+ * (3 hours while a live exam hall is on screen), with a one-minute warning first. Active from sign-in onward, including the password and two-factor steps.
  */
 export function IdleGuard() {
   const { stage, signOut } = useAuth();
@@ -27,14 +27,14 @@ export function IdleGuard() {
     let fired = false;
     const check = () => {
       if (fired) return;
-      const idle = idleFor();
-      if (idle >= IDLE_MS) {
+      const idle = idleFor(), limit = idleLimit();
+      if (idle >= limit) {
         fired = true;
         setLeft(null);
         void signOutRef.current({ idle: true });
         return;
       }
-      const remaining = IDLE_MS - idle;
+      const remaining = limit - idle;
       setLeft(remaining <= WARN_MS ? Math.ceil(remaining / 1000) : null);
     };
     for (const e of ACTIVITY) window.addEventListener(e, onActivity, { passive: true, capture: true });

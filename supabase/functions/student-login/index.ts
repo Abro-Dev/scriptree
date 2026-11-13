@@ -2,7 +2,7 @@
 // Replaces the anonymous student_login_email() lookup, which revealed which student IDs exist.
 //
 // Limits over 15 minutes, counting failures and attempts still in flight (login_attempt_begin, atomic):
-//   5 per identifier from one IP · 20 per identifier from all IPs · 30 per IP.
+//   5 per identifier from one IP · 50 per identifier from all IPs · 30 per IP.
 // Unknown IDs and wrong passwords get the same answer. When the auth server itself is busy or
 // rate-limited, the student is told to retry and the attempt doesn't count against them.
 //

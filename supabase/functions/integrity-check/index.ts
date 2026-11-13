@@ -1,4 +1,4 @@
-// integrity-check — re-hash every active archived file and compare with the SHA-256 recorded at upload.
+// integrity-check — re-hash every archived file (current and superseded versions) and compare with the SHA-256 recorded at upload.
 //
 // Works in resumable batches so a large archive never outlives the edge-function time limit:
 //   * each invocation claims the open run (integrity_runs), checks files in file_no order from the run's
@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
         return json(200, { done: false, run_id: runId, checked });
       }
       const { data: files, error } = await admin.from('files').select('id, file_no, kind, storage_path, sha256')
-        .eq('active', true).gt('file_no', cursor).order('file_no').limit(PAGE);
+        .gt('file_no', cursor).order('file_no').limit(PAGE);
       if (error) throw new Error(error.message);
       if (!files.length) break;
 

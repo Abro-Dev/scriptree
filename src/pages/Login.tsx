@@ -129,7 +129,7 @@ export function LoginPage() {
       <Hero />
       <div className="side-r">
         {!configured && <div className="banner crit" style={{ marginBottom: 18 }}><b>Supabase is not configured.</b> Copy <span className="mono">.env.example</span> to <span className="mono">.env.local</span> and add your project URL and anon key.</div>}
-        {idle && <div className="banner info" role="status" style={{ marginBottom: 18 }}>You were signed out after 15 minutes of inactivity. Sign in again to continue.</div>}
+        {idle && <div className="banner info" role="status" style={{ marginBottom: 18 }}>You were signed out after a period of inactivity. Sign in again to continue.</div>}
         {role ? <SignInForm role={role} onBack={() => setRole(null)} /> : <>
           <h2>Who's signing in?</h2>
           <div className="muted">Each role has its own sign-in and sees only its own work.</div>
