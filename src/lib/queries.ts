@@ -2,6 +2,7 @@ import { cached } from './cache';
 import { supabase } from './supabase';
 import { must } from './useLoad';
 import type { Alert, DashboardStats, DocType, SessionSummary } from './officer';
+import { DEFAULT_BANDS, type GradeBand } from './grading';
 
 /**
  * Reads shared by several screens, cached briefly (see cache.ts). current_alerts and
@@ -33,3 +34,7 @@ export interface AppSettings {
 export const fetchSettings = () =>
   cached('settings', 60_000, async () =>
     must(await supabase.from('settings').select('default_att_mode, allow_pdf_upload, allow_photo_snaps, max_file_mb').single()) as AppSettings);
+
+/** Grade bands (admin-set in System settings). Any signed-in user may read them. */
+export const fetchGradeBands = () =>
+  cached('grade_bands', 5 * 60_000, async () => (must(await supabase.rpc('grade_bands')) as GradeBand[] | null) ?? DEFAULT_BANDS);

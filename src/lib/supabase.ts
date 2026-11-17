@@ -14,6 +14,7 @@ export const urlAuthType: string | null = typeof window === 'undefined' ? null
 const READ_RPCS = new Set([
   'current_alerts', 'session_summaries', 'dashboard_stats', 'session_counts', 'reconcile_session', 'verify_audit_chain',
   'notification_status', 'my_exams', 'my_documents', 'upload_limit_mb', 'resolve_identifier',
+  'grade_bands', 'grading_sheet', 'results_overview', 'student_scoreboard', 'my_results', 'script_grade_history',
 ]);
 /**
  * Hall writes that set a value rather than add one: sending them twice leaves the same record (at worst a

@@ -68,7 +68,9 @@ export function AlertRow({ a, onAck }: { a: Alert; onAck?: (a: Alert) => void })
         <div><b className="small">{a.title}</b></div>
         <div className="small muted">{a.detail}</div>
         <div className="row" style={{ marginTop: 6, gap: 6 }}>
-          {a.session_id && <button className="btn sm" onClick={() => nav(`/sessions/${a.session_id}`)}>Open session</button>}
+          {a.session_id && (a.kind === 'Results not published'
+            ? <button className="btn sm" onClick={() => nav(`/sessions/${a.session_id}?tab=grading`)}>Open grading</button>
+            : <button className="btn sm" onClick={() => nav(`/sessions/${a.session_id}`)}>Open session</button>)}
           {a.alert_key === 'docs-pending' && <button className="btn sm" onClick={() => nav('/documents')}>Review</button>}
           {onAck && (a.acked_by
             ? <span className="small muted">Acknowledged by {a.acked_by}</span>

@@ -36,6 +36,11 @@ export function Dashboard() {
     <>
       <PageTop title="Dashboard" sub="Reconciliation status across all exam sessions" />
       <div className="content">
+        {stats.results_draft > 0 && <div className="banner info row between" style={{ marginBottom: 16, gap: 10 }}>
+          <span><b>{stats.results_draft} closed session{stats.results_draft === 1 ? '' : 's'} waiting for results.</b> Grade the clean scripts and publish so students can see their scores.
+            {stats.results_published > 0 && <span className="muted"> {stats.results_published} published so far.</span>}</span>
+          <button className="btn sm pri" onClick={() => nav('/results')}>Open results</button>
+        </div>}
         <div className="band">
           <Kpi lab="Scripts tracked" val={stats.scripts_total} note={`across ${sessions.length} sessions, ${liveN} live now`} />
           <Kpi lab="Record completeness" val={`${pc}%`} note={`${complete} of ${present} present candidates fully reconciled`} />

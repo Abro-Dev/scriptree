@@ -17,6 +17,7 @@ export interface DashboardStats {
   scan_files: number; files_total: number; files_failed: number; files_checked: number; last_check_at: string | null;
   students_total: number; students_complete: number;
   docs_by_status: Record<string, number>; docs_verified_by_type: Record<string, number>;
+  results_draft: number; results_published: number; grades_total: number;
 }
 
 export interface DocType { id: string; name: string; required: boolean; sort: number }

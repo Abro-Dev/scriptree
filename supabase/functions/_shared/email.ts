@@ -189,6 +189,8 @@ const ALERT_KINDS: Record<string, { eyebrow: string; tone: Tone; cta: string; pa
   integrity_failure: { eyebrow: 'Integrity check failed', tone: 'critical', cta: 'Open the archive', path: '/archive' },
   audit_chain: { eyebrow: 'Audit log tampering', tone: 'critical', cta: 'Open the audit log', path: '/audit' },
   test: { eyebrow: 'Test alert', tone: 'ok', cta: 'Open settings', path: '/settings' },
+  results_published: { eyebrow: 'Results published', tone: 'ok', cta: 'See my results', path: '/my/results',
+    reason: 'You get this because you are a registered student on ScripTree.' },
 };
 
 /** Plain alert text (as written by the database) → HTML: paragraphs, and "  • " lines as a list. */
@@ -221,6 +223,8 @@ export function alertBodyHtml(body: string) {
   return out.join('');
 }
 
+const OFFICE_REASON = 'You get these because this address is the alert email in ScripTree → System settings.';
+
 export function alertEmail(n: { kind: string; subject: string; body: string; created_at?: string }, site: string) {
   const k = ALERT_KINDS[n.kind] ?? { eyebrow: 'Alert', tone: 'warning' as Tone, cta: 'Open ScripTree', path: '' };
   const bare = n.subject.replace(/^ScripTree:\s*/, '');
@@ -230,10 +234,10 @@ export function alertEmail(n: { kind: string; subject: string; body: string; cre
   const html = layout({
     site, title: n.subject, heading: esc(title), eyebrow: k.eyebrow, tone: k.tone,
     preheader: n.body.split('\n').find((l) => l.trim())?.slice(0, 140) ?? title,
-    reason: 'You get these because this address is the alert email in ScripTree → System settings.',
+    reason: k.reason ?? OFFICE_REASON,
     body: alertBodyHtml(n.body) + button(k.cta, url, k.tone === 'critical' ? 'critical' : 'brand')
-      + (when ? small(`Raised ${esc(when)}.`) : ''),
+      + (when && !k.reason ? small(`Raised ${esc(when)}.`) : ''),
   });
-  const text = `${n.body}\n\n—\n${k.cta}: ${url}\nYou get these because this address is the alert email in ScripTree → System settings.`;
+  const text = `${n.body}\n\n—\n${k.cta}: ${url}\n${k.reason ?? OFFICE_REASON}`;
   return { subject: n.subject, html, text };
 }

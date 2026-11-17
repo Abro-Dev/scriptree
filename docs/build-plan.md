@@ -9,9 +9,19 @@ Source of truth for scope: the ScripTree **Prototype** and **System Flow** artif
 | 3 Exams officer | Dashboard, alerts + acknowledge, sessions + new session + CSV import, session reconciliation + resolve, script tracker + custody events (shared with invigilators as Script lookup), digital archive + verify-a-copy + Verify all (`integrity-check` edge function, pulled forward), document queue, audit log viewer + chain verify | ✅ Done |
 | 4 Student | My exams (student-safe status labels), my documents (upload PDF/JPEG/PNG, re-upload after rejection, preservation receipt); `register-file` handles documents | ✅ Done |
 | 5 Admin | Users & roles (invite staff by email, change role, suspend/reactivate, reset 2FA, permission matrix), student one-time passwords (bulk + single reset, printable slips / CSV, forced change at first sign-in), staff forgot-password, settings; `admin-users` edge function | ✅ Done |
+| 7 Grading & results | Officer grades clean scripts (Grading tab per closed session: inline scores, CSV score sheet import/export, maximum score), publish / withdraw results, student **My results** (per script and per course, letter grades), officer **Results** page (progress per session, any student's scoreboard), grade bands in Settings, "results not published" alert, results emails to students | ✅ Done |
 | 6 Server jobs | Nightly integrity check via pg_cron + pg_net (service key in Vault; rescheduled when the time changes), abandoned-upload cleanup, email outbox + `send-alerts` (session closed with discrepancies, integrity failures, test email; retries), rate-limited `student-login` (anonymous lookup removed), job status + test email in Settings | ✅ Done |
 
 ## Open decisions / pending
+
+- **What "clean" means for grading**: the session is closed, the physical script was checked in, and the record
+  is Complete, or its discrepancy was resolved as *Accepted — explained in note*. *Escalated to department*
+  keeps a script on hold. Custody stage (bundled / received / stored) is not required, since some offices skip those steps.
+- **Results are released per session.** With several halls for one course, each hall's session is published separately.
+- **A withheld result** (graded, but the record is no longer clean, e.g. a later integrity failure) is hidden from
+  the student until it is cleared. The officer still sees the score, struck through.
+- **Course totals** add marks and maximums over a course's released papers. Weighted parts (CA 30 % + exam 70 %) would need a weight per session.
+- **Results emails** carry no mark, only "your result is out". They go to the student's email on record, after office alerts, at about 720 an hour.
 
 - **Hosting**: undecided (school server vs cloud). Supabase cloud assumed for now.
 - **QR labels on booklets**: check-in accepts the script ID already; scanning a QR is a later add-on.

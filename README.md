@@ -69,7 +69,7 @@ Stack: React 19 + Vite + TypeScript · Supabase (Postgres, Auth with TOTP two-fa
 | `register-file` | invigilator / officer / student | hashes + archives scans and documents |
 | `integrity-check` | officer ("Verify all files"), nightly cron | re-hashes the archive; nightly also clears abandoned uploads |
 | `admin-users` | admin | staff invites, student one-time passwords, role list, 2FA reset |
-| `send-alerts` | cron, every 5 min | emails the notifications outbox, retries failures |
+| `send-alerts` | cron, every 5 min | emails the notifications outbox (office alerts, then "results published" to students), retries failures |
 | `student-login` | sign-in screen | rate-limited student sign-in (5 failures / 15 min per ID, 30 per IP) |
 
 ## How security is enforced
@@ -86,6 +86,8 @@ Stack: React 19 + Vite + TypeScript · Supabase (Postgres, Auth with TOTP two-fa
   file into `archive/`, and records it through `register_scan()`, which only the service role can call.
 - **Student sign-in is rate-limited** server-side, and unknown IDs get the same answer as wrong passwords.
 - **Alerts can't be lost**: events write to an email outbox in the same transaction; a job delivers and retries.
+- **Grades** are read only through functions: students get their own published, clean results; invigilators never
+  see marks (custody shows "Graded" only). Every score version is kept in append-only `grade_history`.
 - **Audit log** is append-only (update/delete/truncate blocked by trigger) and hash-chained;
   `verify_audit_chain()` re-hashes it and reports the first altered entry.
 

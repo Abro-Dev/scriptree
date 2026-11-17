@@ -6,12 +6,30 @@ import { must, useLoad } from '../../lib/useLoad';
 import { ATT_MODES, type AttMode } from '../../lib/hall';
 import { fmtStamp } from '../../lib/officer';
 import { isEmail } from '../../lib/validate';
+import type { GradeBand } from '../../lib/grading';
 
 interface JobStatus { pending: number; failing: number; last_sent_at: string | null; last_error: string | null; nightly_job: boolean; sender_job: boolean; secrets_ready: boolean }
 
 interface SettingsRow {
   default_att_mode: AttMode; allow_pdf_upload: boolean; allow_photo_snaps: boolean; max_file_mb: number;
-  nightly_check_at: string; alert_email: string | null; updated_at: string;
+  nightly_check_at: string; alert_email: string | null; updated_at: string; grade_bands: GradeBand[];
+}
+type BandDraft = { grade: string; min: string };
+
+/** Same rules as the database (check_grade_bands), so mistakes show before saving. */
+function checkBands(bands: BandDraft[]): string {
+  if (bands.length < 2 || bands.length > 12) return 'Keep between 2 and 12 grade bands.';
+  const names = new Set<string>(), mins = new Set<number>();
+  for (const b of bands) {
+    const g = b.grade.trim().toUpperCase();
+    if (!/^[A-Z][A-Z0-9+-]{0,2}$/.test(g)) return 'Grade names are 1 to 3 characters, e.g. A, B+ or F.';
+    if (names.has(g)) return `Grade ${g} is listed twice.`;
+    if (!/^\d{1,3}(\.\d{1,2})?$/.test(b.min.trim()) || Number(b.min) > 100) return `Grade ${g}: the lowest mark must be a number from 0 to 100.`;
+    if (mins.has(Number(b.min))) return `Two grades start at ${Number(b.min)}%.`;
+    names.add(g); mins.add(Number(b.min));
+  }
+  if (!mins.has(0)) return 'The lowest grade must start at 0%.';
+  return '';
 }
 
 export function Settings() {
@@ -20,9 +38,14 @@ export function Settings() {
   const { data: jobs, reload: reloadJobs } = useLoad(async () => must(await supabase.rpc('notification_status').single()) as JobStatus, []);
   const [testing, setTesting] = useState(false);
   const [f, setF] = useState<SettingsRow | null>(null);
+  const [bands, setBands] = useState<BandDraft[]>([]);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
-  useEffect(() => { if (data) setF({ ...data, nightly_check_at: data.nightly_check_at.slice(0, 5) }); }, [data]);
+  useEffect(() => {
+    if (!data) return;
+    setF({ ...data, nightly_check_at: data.nightly_check_at.slice(0, 5) });
+    setBands((data.grade_bands ?? []).map((b) => ({ grade: b.grade, min: String(b.min) })));
+  }, [data]);
 
   if (error) return <><PageTop title="System settings" /><div className="content"><div className="banner crit">{error}</div></div></>;
   if (!f) return <><PageTop title="System settings" sub="Defaults applied to new exam sessions" /><div className="content muted">Loading…</div></>;
@@ -34,10 +57,13 @@ export function Settings() {
     if (!Number.isInteger(f.max_file_mb) || f.max_file_mb < 1 || f.max_file_mb > 50) return setErr('Maximum file size must be 1–50 MB.');
     if (!/^\d{2}:\d{2}$/.test(f.nightly_check_at)) return setErr('Enter the nightly check time as HH:MM.');
     if (f.alert_email && !isEmail(f.alert_email)) return setErr('Enter a valid alert email, or leave it empty.');
+    const bandErr = checkBands(bands);
+    if (bandErr) return setErr(bandErr);
     setBusy(true);
     const { error } = await supabase.rpc('update_settings', { p: {
       default_att_mode: f.default_att_mode, allow_pdf_upload: f.allow_pdf_upload, allow_photo_snaps: f.allow_photo_snaps,
       max_file_mb: f.max_file_mb, nightly_check_at: f.nightly_check_at, alert_email: f.alert_email?.trim() ?? '',
+      grade_bands: bands.map((b) => ({ grade: b.grade.trim().toUpperCase(), min: Number(b.min) })),
     } });
     setBusy(false);
     if (error) return setErr(errText(error));
@@ -90,6 +116,24 @@ export function Settings() {
             <button className="btn sm" disabled={testing || !data?.alert_email} onClick={testEmail}>{testing ? 'Queuing…' : 'Send test email'}</button>
             <span className="small muted">{data?.alert_email ? `to ${data.alert_email} (save changes first)` : 'Save an alert email first'}</span>
           </div>
+
+          <h3>Grading</h3>
+          <div className="small" style={{ fontWeight: 600, marginBottom: 6 }}>Grade bands (lowest percentage for each grade)</div>
+          <div style={{ marginBottom: 6 }}>
+            {bands.map((b, i) => (
+              <div key={i} className="row small" style={{ gap: 6, marginBottom: 6 }}>
+                <input className="input" style={{ width: 70 }} maxLength={3} value={b.grade} aria-label={`Grade ${i + 1} name`}
+                  onChange={(e) => setBands(bands.map((x, j) => j === i ? { ...x, grade: e.target.value } : x))} />
+                <span>from</span>
+                <input className="input" style={{ width: 80 }} inputMode="decimal" value={b.min} aria-label={`Grade ${i + 1} lowest percentage`}
+                  onChange={(e) => setBands(bands.map((x, j) => j === i ? { ...x, min: e.target.value } : x))} />
+                <span>%</span>
+                <button type="button" className="btn sm" disabled={bands.length <= 2} onClick={() => setBands(bands.filter((_, j) => j !== i))} aria-label={`Remove grade ${b.grade || i + 1}`}>Remove</button>
+              </div>
+            ))}
+            <button type="button" className="btn sm" disabled={bands.length >= 12} onClick={() => setBands([...bands, { grade: '', min: '' }])}>Add grade</button>
+          </div>
+          <div className="legend" style={{ marginBottom: 18 }}>A score's percentage gets the highest grade it reaches. The lowest grade must start at 0. Students see these grades on My results.</div>
 
           <h3>Hosting</h3>
           <div className="small muted" style={{ marginBottom: 18 }}>To be decided — currently Supabase cloud.</div>

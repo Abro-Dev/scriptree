@@ -10,6 +10,7 @@ export const NAV: Record<Role, NavItem[]> = {
     { path: '/users', label: 'Users & roles' },
     { path: '/settings', label: 'System settings' },
     { section: 'Governance' },
+    { path: '/results', label: 'Results' },
     { path: '/audit', label: 'Audit log' },
   ],
   officer: [
@@ -19,6 +20,8 @@ export const NAV: Record<Role, NavItem[]> = {
     { section: 'Track & reconcile' },
     { path: '/sessions', label: 'Exam sessions' },
     { path: '/tracker', label: 'Script tracker' },
+    { section: 'Grade & release' },
+    { path: '/results', label: 'Results' },
     { section: 'Preserve' },
     { path: '/archive', label: 'Digital archive' },
     { path: '/documents', label: 'Student documents' },
@@ -34,6 +37,7 @@ export const NAV: Record<Role, NavItem[]> = {
   student: [
     { section: 'My records' },
     { path: '/my/exams', label: 'My exams' },
+    { path: '/my/results', label: 'My results' },
     { path: '/my/documents', label: 'My documents' },
   ],
 };
@@ -47,5 +51,6 @@ export const ROUTE_ROLES: Record<string, Role[]> = {
   '/overview': ['admin'], '/users': ['admin'], '/settings': ['admin'], '/audit': ['admin', 'officer'],
   '/dashboard': ['officer'], '/alerts': ['officer'], '/sessions': ['officer'], '/sessions/:id': ['officer'], '/archive': ['officer'], '/documents': ['officer'],
   '/tracker': ['officer', 'invigilator'], '/hall': ['invigilator'], '/hall/:id': ['invigilator', 'officer'],
-  '/my/exams': ['student'], '/my/documents': ['student'],
+  '/results': ['officer', 'admin'],
+  '/my/exams': ['student'], '/my/results': ['student'], '/my/documents': ['student'],
 };

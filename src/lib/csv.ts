@@ -54,6 +54,24 @@ export const toCandidates = (rows: string[][]) => mapRows(rows, CANDIDATE_COLUMN
 /** Map a parsed CSV to new-student rows; every column is required. */
 export const toStudents = (rows: string[][]) => mapRows(rows, STUDENT_COLUMNS, STUDENT_COLUMNS);
 
+/** Score sheet: script_code or student_id, and score. Other columns (e.g. full_name) are ignored. */
+export interface ScoreRow { script_code?: string; student_id?: string; score?: string }
+export function toScores(rows: string[][]): { rows: ScoreRow[]; error?: string } {
+  if (!rows.length) return { rows: [], error: 'The file is empty.' };
+  const head = rows[0].map((h) => h.trim().toLowerCase().replace(/[\s.\-/]+/g, '_'));
+  const col = (...names: string[]) => head.findIndex((h) => names.includes(h));
+  const iCode = col('script_code', 'script', 'script_id', 'code');
+  const iId = col('student_id', 'matric_no', 'matric', 'matric_number', 'student_no', 'student_number');
+  const iScore = col('score', 'mark', 'marks', 'total', 'result');
+  if (iScore < 0) return { rows: [], error: 'Missing a score column in the header row. Download the score sheet to see the layout.' };
+  if (iCode < 0 && iId < 0) return { rows: [], error: 'Missing a script_code or student_id column in the header row.' };
+  return { rows: rows.slice(1).map((r) => ({
+    script_code: iCode >= 0 ? (r[iCode] ?? '').trim() : undefined,
+    student_id: iId >= 0 ? (r[iId] ?? '').trim() : undefined,
+    score: (r[iScore] ?? '').trim(),
+  })) };
+}
+
 /** Save a CSV file built from rows (first row = header). */
 export function downloadCsvFile(name: string, rows: string[][]) {
   const q = (v: string) => (/[",\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);

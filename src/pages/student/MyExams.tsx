@@ -1,3 +1,4 @@
+import { Link } from 'react-router';
 import { PageTop } from '../../components/Shell';
 import { Pill } from '../../components/ui';
 import { useAuth } from '../../lib/auth';
@@ -82,7 +83,8 @@ export function MyExams() {
               {!data.exams.length && <tr><td colSpan={6} className="muted">You're not registered for any exams yet. Your department sends the registration list to the exams office.</td></tr>}
             </tbody>
           </table>
-          <div className="legend" style={{ marginTop: 10 }}>If a record is under review, the exams office has been alerted and will resolve it. You don't need to do anything unless contacted.</div>
+          <div className="legend" style={{ marginTop: 10 }}>If a record is under review, the exams office has been alerted and will resolve it. You don't need to do anything unless contacted.
+            Scores appear under <Link to="/my/results">My results</Link> once the exams office publishes them.</div>
         </div>
       </div>
     </>

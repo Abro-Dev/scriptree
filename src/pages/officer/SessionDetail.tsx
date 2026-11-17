@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate, useParams, useSearchParams } from 'react-router';
 import { PageTop } from '../../components/Shell';
 import { Modal, Pill, useToast } from '../../components/ui';
 import { FixModal } from './FixModal';
@@ -8,10 +8,14 @@ import { must, useLoad } from '../../lib/useLoad';
 import { fmtStamp, type SessionSummary } from '../../lib/officer';
 import type { Counts, ExamSession, ReconRow } from '../../lib/hall';
 import { ImportModal } from './Sessions';
+import { GradingTab } from './GradingTab';
 
 const Yes = ({ v }: { v: boolean | null }) => v === true ? <span className="tick">✓</span> : v === false ? <span className="cross">✕</span> : <span className="dash">—</span>;
 
-type Detail = ExamSession & { last_reconciled_at: string | null; invig: { full_name: string } | null };
+type Detail = ExamSession & {
+  last_reconciled_at: string | null; invig: { full_name: string } | null;
+  max_score: number; results_status: 'draft' | 'published'; results_published_at: string | null;
+};
 
 export function SessionDetail() {
   const { id } = useParams();
@@ -22,6 +26,7 @@ export function SessionDetail() {
   const [importing, setImporting] = useState(false);
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [params, setParams] = useSearchParams();
 
   const { data, error, reload } = useLoad(async () => {
     const [s, c, r] = await Promise.all([
@@ -36,6 +41,8 @@ export function SessionDetail() {
   if (!data) return <><PageTop title="Exam session" /><div className="content muted">Loading…</div></>;
   const { s, c, rows } = data;
   const live = s.status !== 'closed';
+  const tab = s.status === 'closed' && params.get('tab') === 'grading' ? 'grading' : 'recon';
+  const setTab = (t: 'recon' | 'grading') => setParams(t === 'grading' ? { tab: 'grading' } : {}, { replace: true });
   const issues = rows.filter((x) => ['crit', 'high', 'med'].includes(x.severity));
   const open = issues.filter((x) => !x.resolved).length;
   const hcMismatch = s.status === 'closed' && c.headcount != null && c.headcount !== c.physical;
@@ -86,13 +93,19 @@ export function SessionDetail() {
         actions={<>
           <button className="btn" onClick={() => nav('/sessions')}>Back to sessions</button>
           {s.status === 'scheduled' && <button className="btn danger" onClick={cancel}>Cancel session</button>}
-          {s.status === 'closed' && <button className="btn" onClick={reopen}>Reopen</button>}
+          {s.status === 'closed' && s.results_status !== 'published' && <button className="btn" onClick={reopen}>Reopen</button>}
           {s.status !== 'closed' && <button className="btn" onClick={() => setEditing(true)}>Edit</button>}
           {s.status !== 'closed' && <button className="btn" title="Run attendance, check-in and scanning yourself, e.g. when the invigilator is away" onClick={() => nav(`/hall/${s.id}`)}>Exam hall</button>}
           {s.status !== 'closed' && <button className="btn" onClick={() => setImporting(true)}>Import candidates</button>}
-          <button className="btn pri" disabled={busy} onClick={runRecon}>Run reconciliation</button>
+          {tab === 'recon' && <button className="btn pri" disabled={busy} onClick={runRecon}>Run reconciliation</button>}
         </>} />
       <div className="content">
+        {s.status === 'closed' && <div className="seg" role="tablist" style={{ marginBottom: 16 }}>
+          <button role="tab" aria-selected={tab === 'recon'} className={tab === 'recon' ? 'on' : ''} onClick={() => setTab('recon')}>Reconciliation</button>
+          <button role="tab" aria-selected={tab === 'grading'} className={tab === 'grading' ? 'on' : ''} onClick={() => setTab('grading')}>
+            Grading{s.results_status === 'published' ? ' · published' : ''}</button>
+        </div>}
+        {tab === 'grading' ? <GradingTab s={s} onChanged={reload} /> : <>
         {s.status === 'scheduled' ? <div className="banner info" style={{ marginBottom: 16 }}><b>Scheduled.</b> The invigilator opens the session in the exam hall. {c.registered} candidates registered so far.</div>
           : live ? <div className="banner info" style={{ marginBottom: 16 }}><b>Live session.</b> Counts update as the invigilator checks in scripts and the scan station uploads. Gaps show as <i>pending</i> until the session is closed, then become discrepancies.</div>
           : open || hcMismatch ? <div className="banner warn" style={{ marginBottom: 16 }}><b>{open} candidate{open === 1 ? '' : 's'} need attention{hcMismatch ? ` · headcount (${c.headcount}) ≠ physical scripts (${c.physical})` : ''}.</b> Each row below shows exactly where the record breaks.</div>
@@ -139,6 +152,7 @@ export function SessionDetail() {
             </tbody>
           </table>
         </div>
+        </>}
       </div>
       {resolving && <FixModal sid={s.id} code={s.course_code} live={live} row={resolving} onClose={() => setResolving(null)} onDone={() => { setResolving(null); reload(); window.dispatchEvent(new Event('alerts-changed')); }} />}
       {editing && <EditSessionModal s={s} onClose={() => setEditing(false)} onDone={() => { setEditing(false); reload(); }} />}
