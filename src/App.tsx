@@ -22,6 +22,7 @@ const named = <M,>(load: () => Promise<M>, name: keyof M): Loader => () => load(
 const LOADERS: Record<string, Loader> = {
   '/hall': named(() => import('./pages/hall/HallList'), 'HallList'),
   '/hall/:id': named(() => import('./pages/hall/Hall'), 'Hall'),
+  '/hall/:id/labels': named(() => import('./pages/hall/Labels'), 'Labels'),
   '/dashboard': named(() => import('./pages/officer/Dashboard'), 'Dashboard'),
   '/alerts': named(() => import('./pages/officer/Alerts'), 'Alerts'),
   '/sessions': named(() => import('./pages/officer/Sessions'), 'Sessions'),

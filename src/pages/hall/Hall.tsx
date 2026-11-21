@@ -81,12 +81,13 @@ export function Hall() {
       <PageTop title="Exam hall" sub={`${s.course_code} ${s.course_title} · ${s.venue} · ${fmtDate(s.exam_date)}`}
         actions={<>
           <button className="btn" onClick={() => nav(home)}>{homeLabel}</button>
+          {s.status !== 'closed' && <button className="btn" onClick={() => nav(`/hall/${s.id}/labels`)}>QR labels</button>}
           {live ? <button className="btn pri" onClick={() => setClosing(true)}>Close session &amp; reconcile</button>
             : s.status === 'closed' ? <span className="pill p-ok">Session closed</span>
             : <button className="btn pri" disabled={busy} onClick={() => confirm(`Open ${s.course_code} in ${s.venue} now? Attendance, check-in and scanning start.`) && openSession()}>{busy ? 'Opening…' : 'Open session'}</button>}
         </>} />
       <div className="content">
-        {s.status === 'scheduled' && <div className="banner info" style={{ marginBottom: 16 }}>This session hasn't been opened. Choose <b>Open session</b> to start taking attendance.</div>}
+        {s.status === 'scheduled' && <div className="banner info" style={{ marginBottom: 16 }}>This session hasn't been opened. Before the paper, <b>print the QR labels</b> and paste one on each candidate's booklet. Choose <b>Open session</b> to start taking attendance.</div>}
         <CountStrip d={d} live={live} />
         <div className="tabs" role="tablist">
           {TABS.map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}

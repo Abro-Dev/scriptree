@@ -44,23 +44,28 @@ export interface HallData {
   rows: ReconRow[];
   marks: Record<string, AttMark>;
   recent: RecentScript[];
+  /** printed QR label code per student (null until labels are generated) */
+  labels: Record<string, string>;
   settings: { allow_pdf_upload: boolean; allow_photo_snaps: boolean; max_file_mb: number };
 }
 
 async function fetchHall(id: string): Promise<HallData> {
-  const [s, c, r, a, rec, st] = await Promise.all([
+  const [s, c, r, a, rec, lb, st] = await Promise.all([
     supabase.from('exam_sessions').select('*').eq('id', id).single<ExamSession>(),
     supabase.rpc('session_counts', { p_session: id }).single<Counts>(),
     supabase.rpc('reconcile_session', { p_session: id }),
     supabase.from('attendance').select('student_id, present, mode, marked_at').eq('session_id', id).returns<AttMark[]>(),
     supabase.from('scripts').select('script_code, created_at, students(full_name, matric_no)').eq('session_id', id)
       .order('created_at', { ascending: false }).limit(6).returns<RecentScript[]>(),
+    supabase.from('registrations').select('student_id, script_code').eq('session_id', id).not('script_code', 'is', null)
+      .returns<{ student_id: string; script_code: string }[]>(),
     fetchSettings(),
   ]);
-  for (const x of [s, c, r, a, rec]) if (x.error) throw x.error;
+  for (const x of [s, c, r, a, rec, lb]) if (x.error) throw x.error;
   return {
     session: s.data!, counts: c.data!, rows: (r.data as ReconRow[] | null) ?? [], recent: rec.data ?? [],
     marks: Object.fromEntries((a.data ?? []).map((m) => [m.student_id, m])),
+    labels: Object.fromEntries((lb.data ?? []).map((l) => [l.student_id, l.script_code])),
     settings: st,
   };
 }

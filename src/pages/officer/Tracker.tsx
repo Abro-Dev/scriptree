@@ -8,7 +8,7 @@ import { must, useLoad } from '../../lib/useLoad';
 import { fileId, fmtStamp } from '../../lib/officer';
 import { mb, shortHash } from '../../lib/pdf';
 
-interface ScanFile { id: string; file_no: number; version: number; active: boolean; uploaded_at: string; uploaded_by_name: string; size_bytes: number; sha256: string; session_id: string; storage_path: string }
+interface ScanFile { id: string; file_no: number; version: number; active: boolean; uploaded_at: string; uploaded_by_name: string; size_bytes: number; sha256: string; session_id: string; storage_path: string; qr_check: 'file' | 'camera' | 'manual' | null }
 interface ScriptRec {
   id: string; script_code: string; status: string; location: string; session_id: string;
   exam_sessions: { course_code: string; course_title: string; exam_date: string; venue: string };
@@ -18,7 +18,15 @@ interface ScriptRec {
 interface Trace { scripts: ScriptRec[]; files: ScanFile[]; integrity: Record<string, boolean | null>; registered: Set<string>; orphanFiles: ScanFile[] }
 
 const STATUS_LABEL: Record<string, string> = { submitted: 'Submitted', bundled: 'Bundled', received: 'Received', stored: 'Stored', out: 'Out' };
-const CUSTODY_ACTIONS = ['Sealed in batch', 'Received at exams office', 'Stored in records room', 'Retrieved for marking', 'Returned to records room', 'Released for result verification'];
+// what may happen next to a script in each state (the database enforces the same order: add_custody_event)
+const CUSTODY_NEXT: Record<string, string[]> = {
+  submitted: ['Sealed in batch', 'Received at exams office'],
+  bundled: ['Received at exams office'],
+  received: ['Stored in records room', 'Retrieved for marking', 'Released for result verification'],
+  stored: ['Retrieved for marking', 'Released for result verification'],
+  out: ['Returned to records room'],
+};
+const QR_CHECK: Record<string, string> = { file: 'QR on page matched', camera: 'Booklet QR matched by camera', manual: 'QR unreadable — checked by eye' };
 
 async function trace(q: string, session: string | null): Promise<Trace | null> {
   const id = must(await supabase.rpc('resolve_identifier', { p_q: q, p_session: session })) as string | null;
@@ -26,7 +34,7 @@ async function trace(q: string, session: string | null): Promise<Trace | null> {
   let sq = supabase.from('scripts')
     .select('id, script_code, status, location, session_id, exam_sessions(course_code, course_title, exam_date, venue), students(full_name, matric_no), custody_events(action, location, actor_name, at)')
     .eq('student_id', id).order('created_at', { ascending: false }).order('at', { referencedTable: 'custody_events' });
-  let fq = supabase.from('files').select('id, file_no, version, active, uploaded_at, uploaded_by_name, size_bytes, sha256, session_id, storage_path')
+  let fq = supabase.from('files').select('id, file_no, version, active, uploaded_at, uploaded_by_name, size_bytes, sha256, session_id, storage_path, qr_check')
     .eq('kind', 'script').eq('student_id', id).order('version');
   if (session) { sq = sq.eq('session_id', session); fq = fq.eq('session_id', session); }
   const [scripts, files, regs] = await Promise.all([
@@ -95,7 +103,7 @@ function FileBox({ f, ok, officer }: { f: ScanFile; ok: boolean | null | undefin
     <div style={{ border: '1px solid var(--line)', borderRadius: 8, padding: 10, marginBottom: 8 }}>
       <div className="row between"><b className="small">v{f.version} · {fileId(f.file_no)}</b>
         {!f.active ? <Pill sev="pend">Superseded</Pill> : ok === false ? <Pill sev="crit">Hash mismatch</Pill> : ok ? <Pill sev="ok">Hash verified</Pill> : <span className="small muted">Not yet re-checked</span>}</div>
-      <div className="small muted" style={{ margin: '4px 0' }}>{fmtStamp(f.uploaded_at)} · {f.uploaded_by_name} · {mb(f.size_bytes)}</div>
+      <div className="small muted" style={{ margin: '4px 0' }}>{fmtStamp(f.uploaded_at)} · {f.uploaded_by_name} · {mb(f.size_bytes)}{f.qr_check && <> · {QR_CHECK[f.qr_check]}</>}</div>
       <div className="row between"><span className="hash" title={f.sha256}>{shortHash(f.sha256)}</span>{officer && <button className="btn sm" onClick={open}>Open PDF</button>}</div>
     </div>
   );
@@ -103,13 +111,16 @@ function FileBox({ f, ok, officer }: { f: ScanFile; ok: boolean | null | undefin
 
 function ScriptCard({ sc, t, officer, onChange }: { sc: ScriptRec; t: Trace; officer: boolean; onChange: () => void }) {
   const toast = useToast();
-  const [act, setAct] = useState(CUSTODY_ACTIONS[1]);
+  const next = CUSTODY_NEXT[sc.status] ?? [];
+  const [pickedAct, setAct] = useState('');
+  const act = next.includes(pickedAct) ? pickedAct : next[0] ?? '';
   const [loc, setLoc] = useState('');
   const [busy, setBusy] = useState(false);
   const s = sc.exam_sessions, st = sc.students;
   const files = t.files.filter((f) => f.session_id === sc.session_id);
 
   async function record() {
+    if (!act) return;
     setBusy(true);
     const { error } = await supabase.rpc('add_custody_event', { p_script: sc.id, p_action: act, p_location: loc.trim().slice(0, 120) });
     setBusy(false);
@@ -136,7 +147,7 @@ function ScriptCard({ sc, t, officer, onChange }: { sc: ScriptRec; t: Trace; off
             <div key={i} className="ev"><b>{e.action}</b><div className="small muted">{fmtStamp(e.at)} · {e.actor_name} · {e.location}</div></div>
           ))}</div>
           {officer && <div className="row" style={{ marginTop: 4 }}>
-            <select className="input" value={act} onChange={(e) => setAct(e.target.value)} aria-label="Custody event">{CUSTODY_ACTIONS.map((a) => <option key={a}>{a}</option>)}</select>
+            <select className="input" value={act} onChange={(e) => setAct(e.target.value)} aria-label="Custody event">{next.map((a) => <option key={a}>{a}</option>)}</select>
             <input className="input" style={{ flex: 1 }} placeholder="Location / note, e.g. Records room · Shelf 4" value={loc} maxLength={120} onChange={(e) => setLoc(e.target.value)} aria-label="Location" />
             <button className="btn" disabled={busy} onClick={record}>Record event</button>
           </div>}

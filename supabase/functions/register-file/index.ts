@@ -40,6 +40,9 @@ interface ScriptBody {
   method: 'pdf' | 'snap';
   pages?: number | null;
   rescan?: boolean;
+  client_sha256?: string;          // the browser's fingerprint of the bytes it uploaded
+  qr?: string | null;              // the script ID read from the QR label
+  qr_source?: 'file' | 'camera' | 'manual'; // read from the scanned page, from the booklet by camera, or checked by eye
 }
 interface DocBody { kind: 'doc'; path: string; name: string; doc_type: string }
 
@@ -85,6 +88,11 @@ Deno.serve(async (req) => {
   if (body.method !== 'pdf' && body.method !== 'snap') return json(400, { error: 'Bad capture method' });
   const pages = body.pages == null ? null : Math.trunc(Number(body.pages));
   if (pages !== null && !(pages >= 1 && pages <= 500)) return json(400, { error: 'Bad page count' });
+  const clientHash = String(body.client_sha256 ?? '').toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(clientHash)) return json(400, { error: 'Refresh the page and try again (no file fingerprint sent)' });
+  const qrSource = body.qr_source;
+  if (qrSource !== 'file' && qrSource !== 'camera' && qrSource !== 'manual') return json(400, { error: 'Check the QR on the script first' });
+  const qr = body.qr == null ? null : String(body.qr).trim().slice(0, 60) || null;
   const name = String(body.name ?? 'scan.pdf').replace(/[^\w.\- ]+/g, '_').slice(0, 200) || 'scan.pdf';
 
   const discard = () => admin.storage.from(bucket).remove([path]);
@@ -104,6 +112,8 @@ Deno.serve(async (req) => {
   if (new TextDecoder().decode(bytes.slice(0, 5)) !== '%PDF-') { await discard(); return json(400, { error: 'Not a PDF (file signature check failed)' }); }
 
   const sha256 = await sha256Hex(bytes);
+  // the bytes that arrived are not the bytes the browser sent: refuse rather than archive a damaged copy
+  if (sha256 !== clientHash) { await discard(); return json(400, { error: 'The file changed on the way to the server (fingerprint mismatch) — scan it again' }); }
   const dest = `archive/${body.session_id}/${body.student_id}/${crypto.randomUUID()}.pdf`;
   const { error: mvErr } = await admin.storage.from(bucket).move(path, dest);
   if (mvErr) return json(500, { error: 'Could not archive the file' });
@@ -112,6 +122,7 @@ Deno.serve(async (req) => {
     p_actor: uid, p_aal: aal, p_session: body.session_id, p_student: body.student_id,
     p_path: dest, p_name: name, p_size: bytes.length, p_sha256: sha256,
     p_method: body.method, p_pages: pages, p_rescan: Boolean(body.rescan),
+    p_qr: qr, p_qr_source: qrSource,
   });
   if (error) {
     await admin.storage.from(bucket).remove([dest]);

@@ -84,6 +84,12 @@ Stack: React 19 + Vite + TypeScript · Supabase (Postgres, Auth with TOTP two-fa
 - **Fingerprints are computed on the server.** Browsers can only upload into `incoming/<their-uid>/`;
   the `register-file` edge function hashes the bytes, checks the PDF signature and size limit, moves the
   file into `archive/`, and records it through `register_scan()`, which only the service role can call.
+  A file whose server fingerprint differs from the browser's is refused.
+- **QR labels track each booklet.** Before the exam the invigilator prints a label per registered candidate
+  (`script_labels()`; the QR holds the script ID, student ID + course code, e.g. `BU/24C/IT/10778-CSC409`). Scanning
+  the label after the exam is the check-in. At the scan station the QR on the scanned cover must match the student
+  the file is saved for — `register_scan()` refuses a label that belongs to someone else, and records whether the
+  match came from the file, the camera, or an eye check. Every label print is in the audit log.
 - **Student sign-in is rate-limited** server-side, and unknown IDs get the same answer as wrong passwords.
 - **Alerts can't be lost**: events write to an email outbox in the same transaction; a job delivers and retries.
 - **Grades** are read only through functions: students get their own published, clean results; invigilators never

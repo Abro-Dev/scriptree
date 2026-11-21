@@ -96,6 +96,7 @@ export function SessionDetail() {
           {s.status === 'closed' && s.results_status !== 'published' && <button className="btn" onClick={reopen}>Reopen</button>}
           {s.status !== 'closed' && <button className="btn" onClick={() => setEditing(true)}>Edit</button>}
           {s.status !== 'closed' && <button className="btn" title="Run attendance, check-in and scanning yourself, e.g. when the invigilator is away" onClick={() => nav(`/hall/${s.id}`)}>Exam hall</button>}
+          {s.status !== 'closed' && <button className="btn" onClick={() => nav(`/hall/${s.id}/labels`)}>QR labels</button>}
           {s.status !== 'closed' && <button className="btn" onClick={() => setImporting(true)}>Import candidates</button>}
           {tab === 'recon' && <button className="btn pri" disabled={busy} onClick={runRecon}>Run reconciliation</button>}
         </>} />

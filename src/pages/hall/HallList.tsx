@@ -57,7 +57,8 @@ export function HallList() {
               <td>{s.start_time.slice(0, 5)}</td>
               <td>{s.venue}</td>
               <td><span className={`pill ${STATUS[s.status][1]}`}>{STATUS[s.status][0]}</span></td>
-              <td className="num">{s.status === 'scheduled'
+              <td className="num">{s.status !== 'closed' && <button className="btn sm" style={{ marginRight: 6 }} onClick={(e) => { e.stopPropagation(); nav(`/hall/${s.id}/labels`); }}>QR labels</button>}
+                {s.status === 'scheduled'
                 ? <button className="btn sm pri" onClick={(e) => { e.stopPropagation(); setOpening(s); }}>Open session</button>
                 : <button className="btn sm">{s.status === 'live' ? 'Go to hall' : 'View'}</button>}</td>
             </tr>))}

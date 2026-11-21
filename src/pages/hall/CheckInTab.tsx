@@ -2,6 +2,7 @@ import { useRef, useState, type FormEvent } from 'react';
 import { useToast } from '../../components/ui';
 import { supabase, errText } from '../../lib/supabase';
 import { fmtTime, matchRow } from '../../lib/hall';
+import { QrScanner, type ScanResult } from '../../components/QrScanner';
 import type { TabProps } from './Hall';
 
 export function CheckInTab({ d, live, reload }: TabProps) {
@@ -9,11 +10,14 @@ export function CheckInTab({ d, live, reload }: TabProps) {
   const toast = useToast();
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState(false);
+  const [camera, setCamera] = useState(false);
+  const [scanned, setScanned] = useState(0);
   const input = useRef<HTMLInputElement>(null);
 
   // present but no script yet; in submission mode also anyone registered who hasn't handed in
   const waiting = d.rows.filter((r) => r.is_registered && !r.has_physical && (r.present === true || (auto && r.present !== false)));
-  const shown = waiting.filter((r) => matchRow(r, q));
+  const shown = waiting.filter((r) => matchRow({ ...r, script_code: r.script_code ?? d.labels[r.student_id] ?? null }, q));
+  const nameOf = (code: string) => d.rows.find((r) => r.student_id && (d.labels[r.student_id] === code.toUpperCase() || r.script_code === code.toUpperCase()));
 
   function submit() {
     // a single live match means the invigilator has narrowed it to one person — check them in;
@@ -21,26 +25,34 @@ export function CheckInTab({ d, live, reload }: TabProps) {
     checkIn(q.trim() && shown.length === 1 ? shown[0].matric_no : q);
   }
 
-  async function checkIn(raw: string) {
+  async function checkIn(raw: string, fromCamera = false): Promise<ScanResult | undefined> {
     const v = raw.trim();
     if (!v) return;
-    if (v.length > 40) { toast('That ID is too long'); return; }
+    if (v.length > 60) { const m = 'That code is too long to be a script ID'; if (!fromCamera) toast(m); return { ok: false, text: m }; }
     setBusy(true);
     const { data, error } = await supabase.rpc('check_in_script', { p_session: s.id, p_identifier: v })
       .single<{ script_code: string; registered: boolean }>();
     setBusy(false);
-    if (error) { toast(errText(error)); input.current?.select(); return; }
-    toast(data!.registered ? `Script ${data!.script_code} checked in` : `Warning: not registered for ${s.course_code} — flagged`);
-    setQ('');
-    input.current?.focus();
+    if (error) {
+      if (!fromCamera) { toast(errText(error)); input.current?.select(); }
+      return { ok: false, text: `${v}: ${errText(error)}` };
+    }
+    const who = nameOf(data!.script_code)?.full_name;
+    const msg = data!.registered ? `✓ ${data!.script_code}${who ? ` · ${who}` : ''} — submitted` : `${data!.script_code}: not registered for ${s.course_code} — checked in and flagged`;
+    if (!fromCamera) { toast(msg); setQ(''); input.current?.focus(); } else setScanned((n) => n + 1);
     reload();
+    return { ok: data!.registered, text: msg };
   }
 
   return (
     <div className="grid g2">
       <div className="card">
-        <h3>Check in a script</h3>
+        <div className="row between"><h3 style={{ margin: 0 }}>Check in a script</h3>
+          <button className="btn pri" disabled={!live} onClick={() => { setScanned(0); setCamera(true); }}>Scan QR labels</button>
+        </div>
         <div className="small muted" style={{ marginBottom: 10 }}>
+          <div style={{ margin: '6px 0' }}>After the paper, <b>scan the QR label on each booklet</b> — that confirms the script is submitted.
+          If a label won't scan, type the ID instead.</div>
           Type the student ID (e.g. BU/24C/IT/10778) or script ID (student ID + course code, e.g. BU/24C/IT/10778-CSC409). The script ID is created here, when the booklet is handed in.
           {auto && <b> Checking in also marks the student present.</b>}
         </div>
@@ -60,6 +72,9 @@ export function CheckInTab({ d, live, reload }: TabProps) {
         {!waiting.length && <div className="muted small">Everyone present has handed in.</div>}
         {waiting.length > 0 && !shown.length && <div className="muted small">Nobody waiting matches “{q.trim()}”. Press Check in to look it up anyway (e.g. a script ID).</div>}
       </div>
+      {camera && <QrScanner title={`Scan booklets · ${s.course_code}`} onClose={() => setCamera(false)}
+        hint={<>Hold each booklet's QR label inside the frame. Each one is checked in as soon as it is read. {scanned > 0 && <b>{scanned} checked in this round · {waiting.length} still to hand in.</b>}</>}
+        onCode={(code) => checkIn(code, true)} />}
       <div className="card">
         <h3>Recently checked in</h3>
         {d.recent.map((x) => (

@@ -2,7 +2,8 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Modal, Pill, useToast } from '../../components/ui';
 import { useAuth } from '../../lib/auth';
 import { supabase, errText, invokeFn } from '../../lib/supabase';
-import { buildPdf, imageToJpeg, isPdf, mb, readBytes } from '../../lib/pdf';
+import { buildPdf, imageToJpeg, isPdf, mb, readBytes, sha256Hex } from '../../lib/pdf';
+import { qrFromScript } from '../../lib/qr';
 import { fmtStamp } from '../../lib/officer';
 import type { ReconRow } from '../../lib/hall';
 
@@ -101,7 +102,7 @@ export function FixModal({ sid, code, live, row: initial, onClose, onDone }: {
       if (!list.length || !auth) return;
       return step(rescan ? 'rescanned — new version uploaded' : 'scan uploaded', async () => {
         const maxBytes = (limits?.max_file_mb ?? 20) * 1048576;
-        let bytes: Uint8Array, method: 'pdf' | 'snap', pages: number | null = null;
+        let bytes: Uint8Array, method: 'pdf' | 'snap', pages: number | null = null, photos: File[] | undefined;
         if (list.length === 1 && !list[0].type.startsWith('image/')) {
           bytes = await readBytes(list[0]);
           if (!isPdf(bytes)) throw new Error(`“${list[0].name}” is not a PDF`);
@@ -111,15 +112,24 @@ export function FixModal({ sid, code, live, row: initial, onClose, onDone }: {
           if (!imgs.length) throw new Error('Choose a PDF or photos of the pages');
           const jp = [];
           for (const f of imgs) jp.push(await imageToJpeg(f));
-          bytes = buildPdf(jp); method = 'snap'; pages = jp.length;
+          bytes = buildPdf(jp); method = 'snap'; pages = jp.length; photos = imgs;
         }
         if (bytes.length > maxBytes) throw new Error(`The file is ${mb(bytes.length)} — the limit is ${limits?.max_file_mb ?? 20} MB`);
+        // the QR label on the cover decides whose script this is; the server refuses a label that belongs to someone else
+        const found = await qrFromScript(bytes, photos);
+        if (!found && !confirm(`No readable QR label in this file.
+
+Have you checked by eye that this booklet is ${row.full_name}'s (${row.matric_no})? This is recorded in the audit log.`)) {
+          throw new Error('Not saved — confirm whose script it is first');
+        }
+        const client_sha256 = await sha256Hex(bytes);
         const path = `incoming/${auth.user.id}/${crypto.randomUUID()}.pdf`;
         const up = await supabase.storage.from('scans').upload(path, new Blob([bytes as BlobPart], { type: 'application/pdf' }), { contentType: 'application/pdf' });
         if (up.error) throw up.error;
         const saved = await invokeFn<{ same_as?: string | null }>('register-file', {
           kind: 'script', path, name: `${code.replace(' ', '')}_${row.matric_no.replace(/\//g, '-')}.pdf`,
           session_id: sid, student_id: row.student_id, method, pages, rescan,
+          client_sha256, qr: found, qr_source: found ? 'file' : 'manual',
         });
         if (saved.same_as) alert(`Saved, but this is the very same file already archived for ${saved.same_as}. One of them is the wrong file — check both.`);
       });
